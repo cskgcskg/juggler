@@ -47,7 +47,7 @@
   body::before {
     content: '';
     position: fixed;
-    inset: 0;
+    top: 0; right: 0; bottom: 0; left: 0;
     background:
       radial-gradient(ellipse at 20% 20%, rgba(124, 108, 240, 0.08) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 80%, rgba(244, 114, 182, 0.06) 0%, transparent 50%),
@@ -520,6 +520,14 @@
           <button class="prop-btn" data-prop="clubs">🪇 Clubs</button>
         </div>
       </div>
+      <div class="control-group" id="spinGroup" style="display:none;">
+        <label>Spins</label>
+        <div class="prop-toggle">
+          <button class="spin-btn active" data-spin="1">1×</button>
+          <button class="spin-btn" data-spin="2">2×</button>
+          <button class="spin-btn" data-spin="3">3×</button>
+        </div>
+      </div>
       <div class="control-group" style="flex-direction:row; gap:8px; align-items:flex-end;">
         <button class="btn btn-primary" id="toggleBtn" style="min-width:110px; text-align:center;">▶ Juggle</button>
         <button class="btn btn-sound active" id="soundBtn" title="Toggle sound">🔊</button>
@@ -556,6 +564,29 @@
 </div>
 
 <script>
+// ─── SAFARI POLYFILLS ──────────────────────────────────────────────
+
+// Polyfill for CanvasRenderingContext2D.ellipse (missing in Safari < 16.4)
+if (!CanvasRenderingContext2D.prototype.ellipse) {
+  CanvasRenderingContext2D.prototype.ellipse = function(cx, cy, rx, ry, rotation, startAngle, endAngle, anticlockwise) {
+    this.save();
+    this.translate(cx, cy);
+    this.rotate(rotation);
+    this.scale(rx, ry);
+    this.arc(0, 0, 1, startAngle, endAngle, anticlockwise);
+    this.restore();
+  };
+}
+
+// Helper: convert hex color + alpha (0-255) to rgba() string (Safari-safe)
+function hexAlpha(hex, alpha) {
+  var num = parseInt(hex.replace('#', ''), 16);
+  var r = (num >> 16) & 255;
+  var g = (num >> 8) & 255;
+  var b = num & 255;
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha / 255).toFixed(3) + ')';
+}
+
 // ─── AUDIO ENGINE (Web Audio API) ────────────────────────────────
 
 let audioCtx = null;
@@ -806,6 +837,7 @@ function getBallStates(sim, now) {
 
     let bx, by;
     let phase = 'caught'; // for sound tracking
+    let frac = 0; // flight progress 0-1 (used for club rotation)
 
     if (v === 2) {
       bx = fromX;
@@ -829,7 +861,7 @@ function getBallStates(sim, now) {
       phase = 'air';
       const airtime = catchMoment - throwMoment;
       const t = elapsed - throwMoment;
-      const frac = airtime > 0 ? t / airtime : 0;
+      frac = airtime > 0 ? t / airtime : 0;
 
       const insideOffset = 30;
       const outsideOffset = 20;
@@ -963,7 +995,7 @@ function drawFrame(timestamp) {
       if (trail.length > 2) {
         for (let i = 1; i < trail.length; i++) {
           const alpha = (i / trail.length) * 0.2;
-          ctx.fillStyle = ball.color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+          ctx.fillStyle = hexAlpha(ball.color, Math.floor(alpha * 255));
           ctx.beginPath();
           ctx.arc(trail[i].x, trail[i].y, 2, 0, Math.PI * 2);
           ctx.fill();
@@ -986,7 +1018,7 @@ function drawFrame(timestamp) {
         for (let i = 1; i < trail.length; i++) {
           const alpha = (i / trail.length) * 0.3;
           const r = BALL_RADIUS * (i / trail.length) * 0.45;
-          ctx.fillStyle = ball.color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+          ctx.fillStyle = hexAlpha(ball.color, Math.floor(alpha * 255));
           ctx.beginPath();
           ctx.arc(trail[i].x, trail[i].y, r, 0, Math.PI * 2);
           ctx.fill();
@@ -998,9 +1030,9 @@ function drawFrame(timestamp) {
     for (const ball of balls) {
       // Glow
       const grad = ctx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, BALL_RADIUS * 3);
-      grad.addColorStop(0, ball.color + '40');
-      grad.addColorStop(0.5, ball.color + '15');
-      grad.addColorStop(1, ball.color + '00');
+      grad.addColorStop(0, hexAlpha(ball.color, 0x40));
+      grad.addColorStop(0.5, hexAlpha(ball.color, 0x15));
+      grad.addColorStop(1, hexAlpha(ball.color, 0x00));
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.arc(ball.x, ball.y, BALL_RADIUS * 3, 0, Math.PI * 2);
@@ -1018,7 +1050,7 @@ function drawFrame(timestamp) {
       ctx.fill();
 
       // Subtle outline
-      ctx.strokeStyle = shadeColor(ball.color, -70) + '80';
+      ctx.strokeStyle = hexAlpha(shadeColor(ball.color, -70), 0x80);
       ctx.lineWidth = 1;
       ctx.stroke();
 
@@ -1395,10 +1427,7 @@ function drawJuggler(ctx, hs) {
 let currentPropType = 'balls';
 
 function getClubRotations(throwValue) {
-  // Single spin for low throws, double for mid, triple for high
-  if (throwValue <= 3) return 1;
-  if (throwValue <= 5) return 2;
-  return 3;
+  return clubSpinCount;
 }
 
 function drawClub(ctx, ball) {
@@ -1426,7 +1455,7 @@ function drawClub(ctx, ball) {
   const handleW = 3;
 
   // Glow behind club
-  ctx.fillStyle = ball.color + '25';
+  ctx.fillStyle = hexAlpha(ball.color, 0x25);
   ctx.beginPath();
   ctx.ellipse(0, -clubLen * 0.3, 12, clubLen * 0.6, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -1467,7 +1496,7 @@ function drawClub(ctx, ball) {
   ctx.stroke();
 
   // Stripe decoration on body
-  ctx.strokeStyle = '#ffffff40';
+  ctx.strokeStyle = 'rgba(255,255,255,0.251)';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(-bodyBotW / 2 + 2, -clubLen * 0.5);
@@ -1517,6 +1546,25 @@ propBtns.forEach(btn => {
     propBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentPropType = btn.dataset.prop;
+  });
+});
+
+// Spin count toggle
+let clubSpinCount = 1;
+const spinGroup = document.getElementById('spinGroup');
+const spinBtns = document.querySelectorAll('.spin-btn');
+spinBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    spinBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    clubSpinCount = parseInt(btn.dataset.spin);
+  });
+});
+
+// Show/hide spin selector based on prop type
+propBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    spinGroup.style.display = btn.dataset.prop === 'clubs' ? '' : 'none';
   });
 });
 
