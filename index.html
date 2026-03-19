@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Siteswap Explorer — Juggling Pattern Simulator</title>
+<meta name="description" content="Interactive physics-based siteswap juggling pattern simulator with real parabolic arcs and sound effects.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #050510;
+    --bg-secondary: #0c0c1a;
+    --surface: rgba(16, 16, 32, 0.7);
+    --surface-solid: #10101f;
+    --border: rgba(120, 100, 255, 0.1);
+    --border-hover: rgba(120, 100, 255, 0.25);
+    --text: #ece9f5;
+    --text-dim: #8280a8;
+    --text-muted: #504e72;
+    --accent: #7c6cf0;
+    --accent-bright: #b0a4ff;
+    --accent-glow: rgba(124, 108, 240, 0.35);
+    --pink: #f472b6;
+    --cyan: #22d3ee;
+    --green: #34d399;
+    --orange: #fb923c;
+    --danger: #ef4444;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --max-w: 740px;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(124, 108, 240, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(244, 114, 182, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(34, 211, 238, 0.04) 0%, transparent 60%);
+    animation: bgPulse 12s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes bgPulse {
+    0% { opacity: 0.7; transform: scale(1); }
+    100% { opacity: 1; transform: scale(1.05); }
+  }
+
+  /* Floating orbs */
+  .bg-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+    animation: orbFloat 20s ease-in-out infinite alternate;
+  }
+  .bg-orb-1 { width: 400px; height: 400px; background: rgba(124,108,240,0.07); top: -100px; left: -100px; animation-duration: 25s; }
+  .bg-orb-2 { width: 350px; height: 350px; background: rgba(244,114,182,0.05); bottom: -50px; right: -80px; animation-duration: 18s; animation-delay: -5s; }
+  .bg-orb-3 { width: 300px; height: 300px; background: rgba(34,211,238,0.04); top: 40%; left: 60%; animation-duration: 22s; animation-delay: -10s; }
+
+  @keyframes orbFloat {
+    0% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -20px) scale(1.1); }
+    66% { transform: translate(-20px, 30px) scale(0.95); }
+    100% { transform: translate(10px, -10px) scale(1.05); }
+  }
+
+  /* Layout */
+  .page-wrapper {
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    text-align: center;
+    padding: 36px 20px 8px;
+    position: relative;
+  }
+  header h1 {
+    font-family: 'Inter', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--accent-bright) 0%, var(--pink) 50%, var(--cyan) 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 6s ease-in-out infinite alternate;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  header p {
+    color: var(--text-dim);
+    font-size: 0.88rem;
+    margin-top: 6px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+  }
+
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 20px 50px;
+    max-width: calc(var(--max-w) + 40px);
+    margin: 0 auto;
+  }
+
+  /* ─── Glass Card ─── */
+  .glass-card {
+    background: var(--surface);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    width: 100%;
+    max-width: var(--max-w);
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .glass-card:hover {
+    border-color: var(--border-hover);
+    box-shadow: 0 0 30px rgba(124,108,240,0.05);
+  }
+
+  /* ─── Controls ─── */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .control-group label {
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+  }
+
+  .control-input {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0 14px;
+    height: 42px;
+    border-radius: var(--radius-sm);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88rem;
+    outline: none;
+    transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+  }
+  .control-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+    background: rgba(255,255,255,0.06);
+  }
+
+  #siteswapInput {
+    width: 120px;
+    font-size: 1.1rem;
+    text-align: center;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+  }
+
+  .num-input {
+    width: 78px;
+  }
+
+  /* ─── Buttons ─── */
+  .btn {
+    position: relative;
+    border: none;
+    padding: 0 20px;
+    height: 42px;
+    border-radius: var(--radius-sm);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #9f8cf5);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(124, 108, 240, 0.3);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(124, 108, 240, 0.45);
+  }
+  .btn-primary:active { transform: translateY(0) scale(0.98); }
+
+  .btn-stop {
+    background: linear-gradient(135deg, var(--danger), #f87171);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.25);
+  }
+  .btn-stop:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(239, 68, 68, 0.4);
+  }
+  .btn-stop:active { transform: translateY(0) scale(0.98); }
+
+  .btn-sound {
+    background: rgba(255,255,255,0.05);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    padding: 0 14px;
+    height: 42px;
+    font-size: 1.05rem;
+  }
+  .btn-sound:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: var(--border-hover);
+    color: var(--text);
+  }
+  .btn-sound.active {
+    background: rgba(124,108,240,0.12);
+    border-color: var(--accent);
+    color: var(--accent-bright);
+  }
+
+  /* ─── Info Bar ─── */
+  .info-bar {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    padding: 12px 20px;
+    font-weight: 500;
+  }
+  .info-bar span { white-space: nowrap; }
+  .info-bar > span + span::before {
+    content: '·';
+    color: var(--text-muted);
+    margin-right: 20px;
+    font-weight: 700;
+  }
+  .info-bar .label { font-weight: 400; }
+  .info-bar .val {
+    color: var(--accent-bright);
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: 4px;
+  }
+
+  .error-msg {
+    color: var(--danger);
+    font-size: 0.8rem;
+    min-height: 1em;
+    text-align: center;
+    font-weight: 500;
+    max-width: var(--max-w);
+    width: 100%;
+  }
+
+  /* ─── Canvas ─── */
+  .canvas-wrapper {
+    position: relative;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow:
+      0 0 60px rgba(124, 108, 240, 0.06),
+      0 16px 48px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255,255,255,0.03);
+    transition: box-shadow 0.3s;
+    width: 100%;
+    max-width: var(--max-w);
+  }
+  .canvas-wrapper:hover {
+    box-shadow:
+      0 0 80px rgba(124, 108, 240, 0.1),
+      0 20px 60px rgba(0, 0, 0, 0.3);
+  }
+  .canvas-wrapper canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: transparent;
+  }
+
+  /* ─── Presets ─── */
+  .presets-section {
+    width: 100%;
+  }
+  .presets-section h3 {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  .presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+  }
+  .preset-chip {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 5px 12px;
+    border-radius: 100px;
+    font-size: 0.72rem;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s;
+    letter-spacing: 0.01em;
+  }
+  .preset-chip:hover {
+    border-color: var(--accent);
+    color: var(--text);
+    background: rgba(124,108,240,0.08);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124,108,240,0.15);
+  }
+  .preset-chip .num {
+    color: var(--accent-bright);
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    margin-right: 5px;
+  }
+
+  /* ─── Legend ─── */
+  .legend {
+    font-size: 0.76rem;
+    color: var(--text-dim);
+    line-height: 1.75;
+    font-weight: 400;
+  }
+  .legend h3 {
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .legend h3::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 16px;
+    background: linear-gradient(to bottom, var(--accent), var(--pink));
+    border-radius: 2px;
+  }
+  .legend b {
+    color: var(--accent-bright);
+    font-weight: 600;
+  }
+  .legend code {
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(255,255,255,0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: var(--pink);
+  }
+
+  /* ─── Footer ─── */
+  .footer {
+    text-align: center;
+    padding: 16px;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+  }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 768px) {
+    header { padding: 20px 16px 4px; }
+    header h1 { font-size: 1.4rem; }
+    header p { font-size: 0.75rem; }
+    .app { padding: 8px 12px 40px; gap: 12px; }
+    .glass-card { padding: 12px 14px; border-radius: 12px; }
+    .controls { gap: 8px; }
+    .control-group label { font-size: 0.62rem; }
+    .control-input { padding: 8px 10px; font-size: 0.82rem; }
+    #siteswapInput { width: 100px; font-size: 1.1rem; }
+    .num-input { width: 65px; }
+    .btn { padding: 9px 14px; font-size: 0.78rem; }
+    .info-bar { gap: 10px; font-size: 0.72rem; padding: 10px 14px; }
+    .preset-chip { padding: 4px 10px; font-size: 0.68rem; }
+    .legend { font-size: 0.72rem; }
+  }
+
+  @media (max-width: 480px) {
+    header h1 { font-size: 1.2rem; }
+    .app { padding: 6px 8px 30px; gap: 10px; }
+    .glass-card { padding: 10px 12px; }
+    .controls { gap: 6px; }
+    #siteswapInput { width: 80px; font-size: 1rem; }
+    .num-input { width: 58px; }
+    .btn { padding: 8px 10px; font-size: 0.72rem; }
+    .btn-sound { padding: 8px 12px; font-size: 0.9rem; }
+    .info-bar { gap: 8px; font-size: 0.68rem; }
+    .preset-chip { padding: 3px 8px; font-size: 0.65rem; }
+  }
+
+  /* ─── Prop Toggle ─── */
+  .prop-toggle {
+    display: flex;
+    gap: 0;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    height: 42px;
+  }
+  .prop-btn {
+    background: rgba(255,255,255,0.03);
+    color: var(--text-dim);
+    border: none;
+    padding: 0 14px;
+    height: 100%;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+  }
+  .prop-btn:not(:last-child) {
+    border-right: 1px solid var(--border);
+  }
+  .prop-btn:hover {
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+  }
+  .prop-btn.active {
+    background: rgba(124,108,240,0.18);
+    color: var(--accent-bright);
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<!-- Background orbs -->
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+<div class="bg-orb bg-orb-3"></div>
+
+<div class="page-wrapper">
+
+<header>
+  <h1>Siteswap Explorer</h1>
+  <p>Physics-based juggling pattern simulator</p>
+</header>
+
+<div class="app">
+
+  <div class="canvas-wrapper">
+    <canvas id="canvas" width="700" height="600"></canvas>
+  </div>
+
+  <div class="glass-card">
+    <div class="controls" id="controls">
+      <div class="control-group">
+        <label for="siteswapInput">Siteswap</label>
+        <input type="text" id="siteswapInput" class="control-input" value="3" placeholder="e.g. 531">
+      </div>
+      <div class="control-group">
+        <label for="speedInput">Tempo (bpm)</label>
+        <input type="number" id="speedInput" class="control-input num-input" value="280" min="60" max="600" step="10">
+      </div>
+      <div class="control-group">
+        <label for="dwellInput">Dwell ratio</label>
+        <input type="number" id="dwellInput" class="control-input num-input" value="0.5" min="0.1" max="0.9" step="0.05">
+      </div>
+      <div class="control-group">
+        <label>Props</label>
+        <div class="prop-toggle">
+          <button class="prop-btn active" data-prop="balls">🎾 Balls</button>
+          <button class="prop-btn" data-prop="clubs">🪇 Clubs</button>
+        </div>
+      </div>
+      <div class="control-group" style="flex-direction:row; gap:8px; align-items:flex-end;">
+        <button class="btn btn-primary" id="toggleBtn" style="min-width:110px; text-align:center;">▶ Juggle</button>
+        <button class="btn btn-sound active" id="soundBtn" title="Toggle sound">🔊</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="glass-card presets-section">
+    <h3>Quick Patterns</h3>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="info-bar glass-card" id="infoBar">
+    <span><span class="label">Balls</span><span class="val" id="infoNumBalls">—</span></span>
+    <span><span class="label">Period</span><span class="val" id="infoPeriod">—</span></span>
+    <span><span class="label">Average</span><span class="val" id="infoAvg">—</span></span>
+    <span><span class="label">Pattern</span><span class="val" id="infoPattern">—</span></span>
+  </div>
+
+  <div class="glass-card legend">
+    <h3>How Siteswap Works</h3>
+    Each digit tells you how many beats a ball stays in the air. <code>3</code> = standard 3-ball cascade.
+    <b>Odd</b> numbers cross to the other hand; <b>even</b> numbers return to the same hand.
+    <code>0</code> = empty beat, <code>1</code> = a quick handoff, <code>2</code> = a hold.
+    Try patterns like <b>441</b>, <b>531</b>, <b>97531</b>, or <b>b</b> (hex for 11).
+    The simulator uses real parabolic gravity arcs — taller throws take longer, just like real life.
+  </div>
+</div>
+
+<div class="footer">Built with physics & the Web Audio API</div>
+
+</div>
+
+<script>
+// ─── AUDIO ENGINE (Web Audio API) ────────────────────────────────
+
+let audioCtx = null;
+let soundEnabled = true;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+// Short percussive "tock" for throws — pitch depends on throw value
+function playThrowSound(throwValue) {
+  if (!soundEnabled || !audioCtx) return;
+  const now = audioCtx.currentTime;
+
+  // Higher throws = lower pitch, giving a sense of weight
+  const baseFreq = 800 - Math.min(throwValue * 40, 500);
+
+  // Oscillator — short blip
+  const osc = audioCtx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(baseFreq, now);
+  osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.4, now + 0.08);
+
+  // Amplitude envelope
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.12, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.12);
+}
+
+// Softer "catch" sound
+function playCatchSound() {
+  if (!soundEnabled || !audioCtx) return;
+  const now = audioCtx.currentTime;
+
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(1200, now);
+  osc.frequency.exponentialRampToValueAtTime(600, now + 0.04);
+
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.06, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.08);
+}
+
+// Sound toggle button
+const soundBtn = document.getElementById('soundBtn');
+soundBtn.addEventListener('click', () => {
+  soundEnabled = !soundEnabled;
+  soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
+  soundBtn.classList.toggle('active', soundEnabled);
+  if (soundEnabled) initAudio();
+});
+
+// ─── SITESWAP ENGINE ───────────────────────────────────────────────
+
+function parseSiteswap(str) {
+  str = str.trim().toLowerCase();
+  if (!str) return null;
+  const vals = [];
+  for (const ch of str) {
+    if (ch >= '0' && ch <= '9') vals.push(parseInt(ch));
+    else if (ch >= 'a' && ch <= 'z') vals.push(ch.charCodeAt(0) - 87);
+    else return null;
+  }
+  if (vals.length === 0) return null;
+  return vals;
+}
+
+function validateSiteswap(vals) {
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  if (Math.abs(avg - Math.round(avg)) > 1e-9) return { ok: false, msg: `Average ${avg.toFixed(2)} is not an integer — invalid siteswap.` };
+  const numBalls = Math.round(avg);
+  const period = vals.length;
+  const landing = new Set();
+  for (let i = 0; i < period; i++) {
+    const land = (i + vals[i]) % period;
+    if (landing.has(land)) return { ok: false, msg: `Two balls land on the same beat — collision at beat ${land}.` };
+    landing.add(land);
+  }
+  return { ok: true, numBalls, period };
+}
+
+// ─── PHYSICS / SIMULATION ──────────────────────────────────────────
+
+const GRAVITY = 9.81;
+
+function throwAirtime(value, beatSec, dwellRatio) {
+  if (value <= 0) return 0;
+  if (value === 2) return 0;
+  const air = (value - 2 * dwellRatio) * beatSec;
+  return Math.max(air, 0.05);
+}
+
+function peakHeight(airtime) {
+  const halfT = airtime / 2;
+  return 0.5 * GRAVITY * halfT * halfT;
+}
+
+// ─── RENDERING CONSTANTS ───────────────────────────────────────────
+
+const W = 700, H = 600;
+const HAND_Y = 490;
+const HAND_SPREAD = 140;
+const CENTER_X = W / 2;
+const BALL_RADIUS = 13;
+const METER_TO_PX = 140;
+
+const BALL_COLORS = [
+  '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7',
+  '#14b8a6', '#f97316', '#ec4899', '#06b6d4', '#eab308',
+  '#8b5cf6', '#fb7185', '#60a5fa', '#34d399', '#fbbf24',
+  '#a78bfa', '#f9a8d4', '#67e8f9', '#cbd5e1', '#6b7280'
+];
+
+// ─── SIMULATOR STATE ───────────────────────────────────────────────
+
+let sim = null;
+let animId = null;
+const MAX_TRAIL = 18;
+let trails = {};
+
+// Sound tracking: keep track of which beats we've already played sounds for
+let soundedThrows = new Set();
+let soundedCatches = new Set();
+
+// Particle system for throw effects
+let particles = [];
+
+// Pause/resume tracking
+let isPaused = false;
+let pauseTimestamp = null;  // the raw performance timestamp when paused
+let totalPausedDuration = 0; // accumulated paused ms
+
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+function lcm(a, b) { return (a / gcd(a, b)) * b; }
+
+function createSimulator(vals, bpm, dwellRatio) {
+  const { numBalls, period } = validateSiteswap(vals);
+  const beatSec = 60 / bpm;
+  const maxThrow = Math.max(...vals);
+  const estimatedCycle = lcm(period, numBalls);
+  const simBeats = Math.max(estimatedCycle * 4 + maxThrow * 2, period * numBalls * 4 + maxThrow * 3);
+  const ballMap = new Array(simBeats).fill(-1);
+  let nextBall = 0;
+
+  for (let beat = 0; beat < simBeats; beat++) {
+    if (ballMap[beat] === -1 && nextBall < numBalls) {
+      ballMap[beat] = nextBall++;
+    }
+    if (ballMap[beat] >= 0) {
+      const v = vals[beat % period];
+      const landBeat = beat + v;
+      if (v > 0 && landBeat < simBeats) {
+        ballMap[landBeat] = ballMap[beat];
+      }
+    }
+  }
+
+  const cycleStart = maxThrow + numBalls + period;
+  let cycleLen = estimatedCycle;
+  for (let tryLen = estimatedCycle; tryLen <= simBeats / 3; tryLen += period) {
+    let match = true;
+    for (let i = cycleStart; i < cycleStart + tryLen; i++) {
+      if (i + tryLen >= simBeats) { match = false; break; }
+      if (ballMap[i] !== ballMap[i + tryLen]) { match = false; break; }
+    }
+    if (match) { cycleLen = tryLen; break; }
+  }
+  const ballCycle = ballMap.slice(cycleStart, cycleStart + cycleLen);
+
+  function handX(hand) {
+    return hand === 'L' ? CENTER_X - HAND_SPREAD : CENTER_X + HAND_SPREAD;
+  }
+
+  function handForBeat(beat) {
+    return beat % 2 === 0 ? 'L' : 'R';
+  }
+
+  function throwInfoAt(beat) {
+    const v = vals[beat % period];
+    const from = handForBeat(beat);
+    let to;
+    if (v === 0 || v === 2) to = from;
+    else if (v % 2 === 0) to = from;
+    else to = from === 'L' ? 'R' : 'L';
+    return { v, from, to };
+  }
+
+  function ballIdAt(beat) {
+    if (beat < 0) return -1;
+    if (beat < simBeats) return ballMap[beat];
+    const offset = ((beat - cycleStart) % cycleLen + cycleLen) % cycleLen;
+    return ballCycle[offset];
+  }
+
+  return {
+    vals, period, numBalls, beatSec, dwellRatio, maxThrow,
+    handX, handForBeat, throwInfoAt, ballIdAt,
+    startTime: null,
+    running: true
+  };
+}
+
+// Compute ball positions at a given time
+function getBallStates(sim, now) {
+  if (sim.startTime === null) sim.startTime = now;
+  const elapsed = now - sim.startTime;
+  const { vals, period, numBalls, beatSec, dwellRatio, handX, throwInfoAt, ballIdAt } = sim;
+
+  const globalBeatF = elapsed / beatSec;
+  const currentBeat = Math.floor(globalBeatF);
+
+  const balls = [];
+  const handStates = { L: { x: handX('L'), y: HAND_Y, holding: false }, R: { x: handX('R'), y: HAND_Y, holding: false } };
+
+  const dwellTime = dwellRatio * beatSec;
+  const lookback = sim.maxThrow + 4;
+
+  for (let ballId = 0; ballId < numBalls; ballId++) {
+    let foundBeat = -1;
+    for (let beat = currentBeat; beat >= Math.max(0, currentBeat - lookback); beat--) {
+      if (ballIdAt(beat) === ballId) {
+        foundBeat = beat;
+        break;
+      }
+    }
+    if (foundBeat < 0) continue;
+
+    const { v, from, to } = throwInfoAt(foundBeat);
+    if (v === 0) continue;
+
+    const fromX = handX(from);
+    const toX = handX(to);
+    const beatStartTime = foundBeat * beatSec;
+    const throwMoment = beatStartTime + dwellTime;
+    const catchMoment = (foundBeat + v) * beatSec;
+
+    let bx, by;
+    let phase = 'caught'; // for sound tracking
+
+    if (v === 2) {
+      bx = fromX;
+      by = HAND_Y;
+      handStates[from].holding = true;
+
+    } else if (elapsed < throwMoment) {
+      // Dwell / scoop phase
+      phase = 'dwell';
+      const dwellFrac = (elapsed - beatStartTime) / dwellTime;
+      const scoopRadius = 22;
+      const scoopDir = from === 'L' ? 1 : -1;
+      bx = fromX + Math.sin(dwellFrac * Math.PI) * scoopRadius * scoopDir;
+      by = HAND_Y + Math.sin(dwellFrac * Math.PI) * scoopRadius * 0.5;
+      handStates[from].holding = true;
+      handStates[from].x = bx;
+      handStates[from].y = by;
+
+    } else if (elapsed < catchMoment) {
+      // In the air
+      phase = 'air';
+      const airtime = catchMoment - throwMoment;
+      const t = elapsed - throwMoment;
+      const frac = airtime > 0 ? t / airtime : 0;
+
+      const insideOffset = 30;
+      const outsideOffset = 20;
+      const throwX = fromX + (from === 'L' ? insideOffset : -insideOffset);
+      const catchX = toX + (to === 'L' ? -outsideOffset : outsideOffset);
+
+      bx = throwX + (catchX - throwX) * frac;
+      const peakH = peakHeight(airtime) * METER_TO_PX;
+      by = HAND_Y - 4 * peakH * frac * (1 - frac);
+
+      // ── THROW SOUND ──
+      const throwKey = `${foundBeat}_${ballId}`;
+      if (frac < 0.15 && !soundedThrows.has(throwKey)) {
+        soundedThrows.add(throwKey);
+        playThrowSound(v);
+        // Spawn particles at throw point
+        spawnParticles(bx, by, BALL_COLORS[ballId % BALL_COLORS.length], 5);
+      }
+
+    } else {
+      // Caught
+      bx = toX;
+      by = HAND_Y;
+      handStates[to].holding = true;
+
+      // ── CATCH SOUND ──
+      const catchKey = `${foundBeat}_${ballId}_c`;
+      if (!soundedCatches.has(catchKey)) {
+        soundedCatches.add(catchKey);
+        playCatchSound();
+        spawnParticles(bx, by, BALL_COLORS[ballId % BALL_COLORS.length], 3);
+      }
+    }
+
+    balls.push({ x: bx, y: by, color: BALL_COLORS[ballId % BALL_COLORS.length], id: ballId, airFrac: phase === 'air' ? frac : (phase === 'dwell' ? -1 : 0), throwValue: v });
+  }
+
+  // Clean up old sound keys to prevent memory leak
+  if (soundedThrows.size > 500) soundedThrows.clear();
+  if (soundedCatches.size > 500) soundedCatches.clear();
+
+  return { balls, handStates, globalBeatF };
+}
+
+// ─── PARTICLE SYSTEM ───────────────────────────────────────────────
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 4,
+      vy: (Math.random() - 0.8) * 3,
+      life: 1.0,
+      decay: 0.02 + Math.random() * 0.03,
+      size: 2 + Math.random() * 3,
+      color
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.08; // gravity
+    p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles(ctx) {
+  for (const p of particles) {
+    const alpha = Math.max(0, p.life);
+    ctx.globalAlpha = alpha * 0.7;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ─── RENDERER ──────────────────────────────────────────────────────
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+function drawFrame(timestamp) {
+  if (!sim || !sim.running) return;
+  if (isPaused) return; // frozen — don't draw new frames
+
+  const now = (timestamp - totalPausedDuration) / 1000;
+  const { balls, handStates, globalBeatF } = getBallStates(sim, now);
+
+  // Clear with subtle gradient background
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#0a0a18');
+  bgGrad.addColorStop(0.5, '#0e0e1e');
+  bgGrad.addColorStop(1, '#080814');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw faint grid with fade
+  for (let y = 50; y < H; y += 50) {
+    const gridAlpha = 0.04 + Math.sin(y * 0.01 + timestamp * 0.0005) * 0.015;
+    ctx.strokeStyle = `rgba(120, 100, 255, ${gridAlpha})`;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+
+  // Draw body
+  drawJuggler(ctx, handStates);
+
+  // Update & draw particles
+  updateParticles();
+  drawParticles(ctx);
+
+  // Draw props (balls or clubs)
+  const propType = currentPropType;
+  if (propType === 'clubs') {
+    // Draw club trails differently (just dots)
+    for (const ball of balls) {
+      if (!trails[ball.id]) trails[ball.id] = [];
+      trails[ball.id].push({ x: ball.x, y: ball.y });
+      if (trails[ball.id].length > MAX_TRAIL) trails[ball.id].shift();
+      const trail = trails[ball.id];
+      if (trail.length > 2) {
+        for (let i = 1; i < trail.length; i++) {
+          const alpha = (i / trail.length) * 0.2;
+          ctx.fillStyle = ball.color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+          ctx.beginPath();
+          ctx.arc(trail[i].x, trail[i].y, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    // Draw clubs
+    for (const ball of balls) {
+      drawClub(ctx, ball);
+    }
+  } else {
+    // Draw ball trails
+    for (const ball of balls) {
+      if (!trails[ball.id]) trails[ball.id] = [];
+      trails[ball.id].push({ x: ball.x, y: ball.y });
+      if (trails[ball.id].length > MAX_TRAIL) trails[ball.id].shift();
+
+      const trail = trails[ball.id];
+      if (trail.length > 2) {
+        for (let i = 1; i < trail.length; i++) {
+          const alpha = (i / trail.length) * 0.3;
+          const r = BALL_RADIUS * (i / trail.length) * 0.45;
+          ctx.fillStyle = ball.color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+          ctx.beginPath();
+          ctx.arc(trail[i].x, trail[i].y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // Draw balls
+    for (const ball of balls) {
+      // Glow
+      const grad = ctx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, BALL_RADIUS * 3);
+      grad.addColorStop(0, ball.color + '40');
+      grad.addColorStop(0.5, ball.color + '15');
+      grad.addColorStop(1, ball.color + '00');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, BALL_RADIUS * 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Main ball with 3D shading
+      const ballGrad = ctx.createRadialGradient(ball.x - 4, ball.y - 4, 1, ball.x + 2, ball.y + 2, BALL_RADIUS);
+      ballGrad.addColorStop(0, '#ffffff');
+      ballGrad.addColorStop(0.2, lightenColor(ball.color, 30));
+      ballGrad.addColorStop(0.6, ball.color);
+      ballGrad.addColorStop(1, shadeColor(ball.color, -50));
+      ctx.fillStyle = ballGrad;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Subtle outline
+      ctx.strokeStyle = shadeColor(ball.color, -70) + '80';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Specular highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.beginPath();
+      ctx.ellipse(ball.x - 3, ball.y - 4, 4, 2.5, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Beat indicator
+  const currentBeatInPattern = Math.floor(globalBeatF) % sim.period;
+  const beatY = H - 22;
+  const totalW = sim.period * 18;
+  const startX = CENTER_X - totalW / 2;
+
+  for (let i = 0; i < sim.period; i++) {
+    const bx = startX + i * 18 + 9;
+    const isActive = i === currentBeatInPattern;
+
+    if (isActive) {
+      // Active beat glow
+      const pulseGrad = ctx.createRadialGradient(bx, beatY, 0, bx, beatY, 12);
+      pulseGrad.addColorStop(0, 'rgba(168,158,255,0.4)');
+      pulseGrad.addColorStop(1, 'rgba(168,158,255,0)');
+      ctx.fillStyle = pulseGrad;
+      ctx.beginPath();
+      ctx.arc(bx, beatY, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#a89eff';
+      ctx.beginPath();
+      ctx.arc(bx, beatY, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = '500 11px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(sim.vals[i].toString(36), bx, beatY);
+    } else {
+      ctx.fillStyle = 'rgba(120,100,255,0.15)';
+      ctx.beginPath();
+      ctx.arc(bx, beatY, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#555';
+      ctx.font = '400 10px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(sim.vals[i].toString(36), bx, beatY);
+    }
+  }
+
+  animId = requestAnimationFrame(drawFrame);
+}
+
+function drawJuggler(ctx, hs) {
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  const headY = 420;
+  const headRx = 17, headRy = 20;
+  const neckY = headY + headRy + 2;
+  const shoulderY = neckY + 10;
+  const shoulderW = 40;
+  const hipY = shoulderY + 60;
+  const hipW = 22;
+  const kneeY = hipY + 38;
+  const footY = hipY + 62;
+  const lhx = hs.L.x, lhy = hs.L.y;
+  const rhx = hs.R.x, rhy = hs.R.y;
+
+  // ── Ambient glow behind the juggler ──
+  const ambGlow = ctx.createRadialGradient(CENTER_X, shoulderY + 30, 10, CENTER_X, shoulderY + 30, 140);
+  ambGlow.addColorStop(0, 'rgba(124, 108, 240, 0.06)');
+  ambGlow.addColorStop(1, 'rgba(124, 108, 240, 0)');
+  ctx.fillStyle = ambGlow;
+  ctx.beginPath();
+  ctx.arc(CENTER_X, shoulderY + 30, 140, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── Legs (drawn first, behind torso) ──
+  const legThick = 7;
+  const lKneeX = CENTER_X - 18, rKneeX = CENTER_X + 18;
+  const lFootX = CENTER_X - 28, rFootX = CENTER_X + 28;
+
+  // Leg gradient (dark pants)
+  const legColor = '#3a3860';
+  const legHighlight = '#4a4878';
+
+  // Left leg
+  ctx.strokeStyle = legColor;
+  ctx.lineWidth = legThick;
+  ctx.beginPath();
+  ctx.moveTo(CENTER_X - hipW * 0.5, hipY);
+  ctx.quadraticCurveTo(lKneeX - 4, kneeY, lFootX, footY);
+  ctx.stroke();
+  // Highlight
+  ctx.strokeStyle = legHighlight;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(CENTER_X - hipW * 0.5, hipY);
+  ctx.quadraticCurveTo(lKneeX - 2, kneeY, lFootX, footY);
+  ctx.stroke();
+
+  // Right leg
+  ctx.strokeStyle = legColor;
+  ctx.lineWidth = legThick;
+  ctx.beginPath();
+  ctx.moveTo(CENTER_X + hipW * 0.5, hipY);
+  ctx.quadraticCurveTo(rKneeX + 4, kneeY, rFootX, footY);
+  ctx.stroke();
+  ctx.strokeStyle = legHighlight;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(CENTER_X + hipW * 0.5, hipY);
+  ctx.quadraticCurveTo(rKneeX + 2, kneeY, rFootX, footY);
+  ctx.stroke();
+
+  // Shoes
+  ctx.fillStyle = '#2a2845';
+  ctx.beginPath();
+  ctx.ellipse(lFootX - 2, footY + 2, 12, 6, -0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#343260';
+  ctx.beginPath();
+  ctx.ellipse(lFootX - 2, footY, 10, 5, -0.15, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#2a2845';
+  ctx.beginPath();
+  ctx.ellipse(rFootX + 2, footY + 2, 12, 6, 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#343260';
+  ctx.beginPath();
+  ctx.ellipse(rFootX + 2, footY, 10, 5, 0.15, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── Torso (filled shape with clothing) ──
+  ctx.beginPath();
+  ctx.moveTo(CENTER_X - shoulderW, shoulderY);
+  ctx.lineTo(CENTER_X - hipW, hipY);
+  ctx.lineTo(CENTER_X + hipW, hipY);
+  ctx.lineTo(CENTER_X + shoulderW, shoulderY);
+  ctx.closePath();
+  const torsoGrad = ctx.createLinearGradient(CENTER_X, shoulderY, CENTER_X, hipY);
+  torsoGrad.addColorStop(0, '#4a4080');
+  torsoGrad.addColorStop(0.4, '#3d3570');
+  torsoGrad.addColorStop(1, '#2e2858');
+  ctx.fillStyle = torsoGrad;
+  ctx.fill();
+  ctx.strokeStyle = '#5a5290';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Shirt collar / neckline detail
+  ctx.beginPath();
+  ctx.moveTo(CENTER_X - 14, shoulderY);
+  ctx.quadraticCurveTo(CENTER_X, shoulderY - 6, CENTER_X + 14, shoulderY);
+  ctx.strokeStyle = '#6a60a8';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Center line on torso (subtle)
+  ctx.beginPath();
+  ctx.moveTo(CENTER_X, shoulderY + 8);
+  ctx.lineTo(CENTER_X, hipY - 5);
+  ctx.strokeStyle = 'rgba(100, 90, 160, 0.25)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // ── Arms ──
+  const armThick = 5.5;
+  const armColor = '#4a4080';
+  const armSkin = '#c8a88a';
+
+  // Left arm
+  const lElbow = { x: CENTER_X - shoulderW - 18, y: shoulderY + 48 };
+  // Upper arm (clothed)
+  ctx.strokeStyle = armColor;
+  ctx.lineWidth = armThick;
+  ctx.beginPath();
+  ctx.moveTo(CENTER_X - shoulderW, shoulderY + 2);
+  ctx.quadraticCurveTo(lElbow.x + 8, lElbow.y - 10, lElbow.x, lElbow.y);
+  ctx.stroke();
+  // Forearm (skin-toned)
+  ctx.strokeStyle = armSkin;
+  ctx.lineWidth = armThick - 1;
+  ctx.beginPath();
+  ctx.moveTo(lElbow.x, lElbow.y);
+  ctx.quadraticCurveTo(lElbow.x - 5, (lElbow.y + lhy) / 2, lhx, lhy);
+  ctx.stroke();
+
+  // Right arm
+  const rElbow = { x: CENTER_X + shoulderW + 18, y: shoulderY + 48 };
+  ctx.strokeStyle = armColor;
+  ctx.lineWidth = armThick;
+  ctx.beginPath();
+  ctx.moveTo(CENTER_X + shoulderW, shoulderY + 2);
+  ctx.quadraticCurveTo(rElbow.x - 8, rElbow.y - 10, rElbow.x, rElbow.y);
+  ctx.stroke();
+  ctx.strokeStyle = armSkin;
+  ctx.lineWidth = armThick - 1;
+  ctx.beginPath();
+  ctx.moveTo(rElbow.x, rElbow.y);
+  ctx.quadraticCurveTo(rElbow.x + 5, (rElbow.y + rhy) / 2, rhx, rhy);
+  ctx.stroke();
+
+  // ── Neck ──
+  ctx.strokeStyle = armSkin;
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.moveTo(CENTER_X, neckY - 2);
+  ctx.lineTo(CENTER_X, shoulderY + 2);
+  ctx.stroke();
+
+  // ── Head ──
+  const headGrad = ctx.createRadialGradient(CENTER_X - 4, headY - 6, 2, CENTER_X, headY, headRy);
+  headGrad.addColorStop(0, '#e8c8a8');
+  headGrad.addColorStop(0.7, '#d4a87a');
+  headGrad.addColorStop(1, '#b88a60');
+  ctx.fillStyle = headGrad;
+  ctx.beginPath();
+  ctx.ellipse(CENTER_X, headY, headRx, headRy, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#a07850';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Hair
+  ctx.fillStyle = '#2a2040';
+  ctx.beginPath();
+  ctx.ellipse(CENTER_X, headY - 8, headRx + 2, headRy * 0.5, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+  // Side hair
+  ctx.beginPath();
+  ctx.ellipse(CENTER_X - headRx - 1, headY - 3, 3, 10, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(CENTER_X + headRx + 1, headY - 3, 3, 10, -0.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── JESTER HAT ──
+  const hatBaseY = headY - headRy + 2;
+  const hatColors = ['#e74c3c', '#f1c40f', '#2ecc71'];
+  // Hat brim
+  ctx.fillStyle = '#8b5cf6';
+  ctx.beginPath();
+  ctx.ellipse(CENTER_X, hatBaseY + 2, headRx + 8, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#6d28d9';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Three jester prongs
+  const prongs = [
+    { cx: CENTER_X - 20, cy: hatBaseY - 30, color: hatColors[0], angle: -0.4 },
+    { cx: CENTER_X,      cy: hatBaseY - 38, color: hatColors[1], angle: 0 },
+    { cx: CENTER_X + 20, cy: hatBaseY - 30, color: hatColors[2], angle: 0.4 },
+  ];
+  for (const p of prongs) {
+    // Prong body
+    ctx.beginPath();
+    ctx.moveTo(CENTER_X - 6 + (p.cx - CENTER_X) * 0.3, hatBaseY);
+    ctx.quadraticCurveTo(p.cx + Math.sin(p.angle) * 8, (hatBaseY + p.cy) / 2, p.cx, p.cy);
+    ctx.quadraticCurveTo(p.cx - Math.sin(p.angle) * 8, (hatBaseY + p.cy) / 2, CENTER_X + 6 + (p.cx - CENTER_X) * 0.3, hatBaseY);
+    ctx.closePath();
+    const pGrad = ctx.createLinearGradient(p.cx, hatBaseY, p.cx, p.cy);
+    pGrad.addColorStop(0, '#8b5cf6');
+    pGrad.addColorStop(0.4, p.color);
+    pGrad.addColorStop(1, p.color);
+    ctx.fillStyle = pGrad;
+    ctx.fill();
+    ctx.strokeStyle = shadeColor(p.color, -30);
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+
+    // Bell at the tip
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.arc(p.cx, p.cy, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#d4a00a';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Bell shine
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath();
+    ctx.arc(p.cx - 1, p.cy - 1.5, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.ellipse(CENTER_X - 6, headY - 2, 3.5, 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(CENTER_X + 6, headY - 2, 3.5, 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Pupils (looking up at the balls)
+  ctx.fillStyle = '#1a1030';
+  ctx.beginPath();
+  ctx.arc(CENTER_X - 6, headY - 3, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(CENTER_X + 6, headY - 3, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  // Eye shine
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath();
+  ctx.arc(CENTER_X - 5, headY - 3.5, 0.7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(CENTER_X + 7, headY - 3.5, 0.7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Subtle smile
+  ctx.strokeStyle = '#9a7050';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(CENTER_X, headY + 3, 5, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
+
+  // ── Hands (skin-toned with glow) ──
+  // Left hand glow
+  const lhGlow = ctx.createRadialGradient(lhx, lhy, 0, lhx, lhy, 18);
+  lhGlow.addColorStop(0, 'rgba(168, 158, 255, 0.25)');
+  lhGlow.addColorStop(1, 'rgba(168, 158, 255, 0)');
+  ctx.fillStyle = lhGlow;
+  ctx.beginPath();
+  ctx.arc(lhx, lhy, 18, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Left hand
+  const handGrad1 = ctx.createRadialGradient(lhx - 1, lhy - 1, 0, lhx, lhy, 9);
+  handGrad1.addColorStop(0, '#e8c8a8');
+  handGrad1.addColorStop(1, '#c8a080');
+  ctx.fillStyle = handGrad1;
+  ctx.beginPath();
+  ctx.ellipse(lhx, lhy, 8, 6, 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#a58060';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Right hand glow
+  const rhGlow = ctx.createRadialGradient(rhx, rhy, 0, rhx, rhy, 18);
+  rhGlow.addColorStop(0, 'rgba(168, 158, 255, 0.25)');
+  rhGlow.addColorStop(1, 'rgba(168, 158, 255, 0)');
+  ctx.fillStyle = rhGlow;
+  ctx.beginPath();
+  ctx.arc(rhx, rhy, 18, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Right hand
+  const handGrad2 = ctx.createRadialGradient(rhx + 1, rhy - 1, 0, rhx, rhy, 9);
+  handGrad2.addColorStop(0, '#e8c8a8');
+  handGrad2.addColorStop(1, '#c8a080');
+  ctx.fillStyle = handGrad2;
+  ctx.beginPath();
+  ctx.ellipse(rhx, rhy, 8, 6, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#a58060';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ─── CLUB DRAWING ─────────────────────────────────────────────────
+
+let currentPropType = 'balls';
+
+function getClubRotations(throwValue) {
+  // Single spin for low throws, double for mid, triple for high
+  if (throwValue <= 3) return 1;
+  if (throwValue <= 5) return 2;
+  return 3;
+}
+
+function drawClub(ctx, ball) {
+  ctx.save();
+  ctx.translate(ball.x, ball.y);
+
+  // Rotation: clubs spin during flight
+  let angle = Math.PI / 2; // default upright in hand
+  if (ball.airFrac > 0 && ball.airFrac <= 1) {
+    const rotations = getClubRotations(ball.throwValue);
+    // Full rotations during flight
+    angle = ball.airFrac * rotations * Math.PI * 2;
+  } else if (ball.airFrac === -1) {
+    // Dwell — held upright, slight tilt
+    angle = -Math.PI * 0.1;
+  }
+
+  ctx.rotate(angle);
+
+  const clubLen = 36;
+  const handleLen = 14;
+  const bodyTopW = 4;
+  const bodyBotW = 10;
+  const knobR = 5;
+  const handleW = 3;
+
+  // Glow behind club
+  ctx.fillStyle = ball.color + '25';
+  ctx.beginPath();
+  ctx.ellipse(0, -clubLen * 0.3, 12, clubLen * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Handle (bottom part)
+  ctx.strokeStyle = '#d4c8a0';
+  ctx.lineWidth = handleW;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, handleLen);
+  ctx.lineTo(0, 2);
+  ctx.stroke();
+
+  // Handle knob at the very bottom
+  ctx.fillStyle = '#e8d8b0';
+  ctx.beginPath();
+  ctx.arc(0, handleLen + 2, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Club body (tapered shape)
+  ctx.beginPath();
+  ctx.moveTo(-bodyTopW / 2, 0);
+  ctx.quadraticCurveTo(-bodyBotW / 2 - 1, -clubLen * 0.4, -bodyBotW / 2, -clubLen * 0.6);
+  ctx.quadraticCurveTo(-bodyBotW / 2 + 1, -clubLen * 0.85, 0, -clubLen);
+  ctx.quadraticCurveTo(bodyBotW / 2 - 1, -clubLen * 0.85, bodyBotW / 2, -clubLen * 0.6);
+  ctx.quadraticCurveTo(bodyBotW / 2 + 1, -clubLen * 0.4, bodyTopW / 2, 0);
+  ctx.closePath();
+
+  // Gradient fill on the body
+  const bodyGrad = ctx.createLinearGradient(-bodyBotW, 0, bodyBotW, -clubLen);
+  bodyGrad.addColorStop(0, ball.color);
+  bodyGrad.addColorStop(0.5, lightenColor(ball.color, 25));
+  bodyGrad.addColorStop(1, ball.color);
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+  ctx.strokeStyle = shadeColor(ball.color, -40);
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Stripe decoration on body
+  ctx.strokeStyle = '#ffffff40';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-bodyBotW / 2 + 2, -clubLen * 0.5);
+  ctx.lineTo(bodyBotW / 2 - 2, -clubLen * 0.5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-bodyBotW / 2 + 3, -clubLen * 0.55);
+  ctx.lineTo(bodyBotW / 2 - 3, -clubLen * 0.55);
+  ctx.stroke();
+
+  // Tip highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(-1, -clubLen * 0.7, 2, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function shadeColor(color, percent) {
+  let num = parseInt(color.replace('#', ''), 16);
+  let r = (num >> 16) + percent;
+  let g = ((num >> 8) & 0x00FF) + percent;
+  let b = (num & 0x0000FF) + percent;
+  r = Math.max(0, Math.min(255, r));
+  g = Math.max(0, Math.min(255, g));
+  b = Math.max(0, Math.min(255, b));
+  return '#' + (r << 16 | g << 8 | b).toString(16).padStart(6, '0');
+}
+
+function lightenColor(color, percent) {
+  return shadeColor(color, percent);
+}
+
+// ─── UI WIRING ─────────────────────────────────────────────────────
+
+const siteswapInput = document.getElementById('siteswapInput');
+const speedInput = document.getElementById('speedInput');
+const dwellInput = document.getElementById('dwellInput');
+const toggleBtn = document.getElementById('toggleBtn');
+const errorMsg = document.getElementById('errorMsg');
+
+// Prop toggle
+const propBtns = document.querySelectorAll('.prop-btn');
+propBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    propBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPropType = btn.dataset.prop;
+  });
+});
+
+let currentSiteswapStr = ''; // track what's currently running
+
+function toggleJuggling() {
+  initAudio();
+
+  const newSiteswap = siteswapInput.value.trim().toLowerCase();
+  const siteswapChanged = newSiteswap !== currentSiteswapStr;
+
+  // If currently running (not paused) and siteswap hasn't changed — pause
+  if (sim && sim.running && !isPaused && !siteswapChanged) {
+    isPaused = true;
+    pauseTimestamp = performance.now();
+    if (animId) cancelAnimationFrame(animId);
+    animId = null;
+    toggleBtn.textContent = '▶ Resume';
+    toggleBtn.classList.remove('btn-stop');
+    toggleBtn.classList.add('btn-primary');
+    return;
+  }
+
+  // If paused and siteswap hasn't changed — resume
+  if (isPaused && sim && !siteswapChanged) {
+    isPaused = false;
+    const resumeTimestamp = performance.now();
+    totalPausedDuration += (resumeTimestamp - pauseTimestamp);
+    pauseTimestamp = null;
+    toggleBtn.textContent = '⏸ Pause';
+    toggleBtn.classList.remove('btn-primary');
+    toggleBtn.classList.add('btn-stop');
+    animId = requestAnimationFrame(drawFrame);
+    return;
+  }
+
+  // Fresh start (new siteswap or first time)
+  fullStop();
+
+  const vals = parseSiteswap(siteswapInput.value);
+  if (!vals) {
+    errorMsg.textContent = 'Invalid characters in siteswap. Use digits 0-9 and letters a-z.';
+    return;
+  }
+
+  const validation = validateSiteswap(vals);
+  if (!validation.ok) {
+    errorMsg.textContent = validation.msg;
+    return;
+  }
+  errorMsg.textContent = '';
+
+  const bpm = parseInt(speedInput.value) || 280;
+  const dwell = parseFloat(dwellInput.value) || 0.5;
+
+  sim = createSimulator(vals, bpm, dwell);
+  currentSiteswapStr = newSiteswap;
+  soundedThrows.clear();
+  soundedCatches.clear();
+  particles = [];
+  isPaused = false;
+  pauseTimestamp = null;
+  totalPausedDuration = 0;
+
+  document.getElementById('infoNumBalls').textContent = validation.numBalls;
+  document.getElementById('infoPeriod').textContent = validation.period;
+  document.getElementById('infoAvg').textContent = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
+  document.getElementById('infoPattern').textContent = vals.map(v => v.toString(36)).join('');
+
+  toggleBtn.textContent = '⏸ Pause';
+  toggleBtn.classList.remove('btn-primary');
+  toggleBtn.classList.add('btn-stop');
+  animId = requestAnimationFrame(drawFrame);
+}
+
+function fullStop() {
+  if (animId) cancelAnimationFrame(animId);
+  animId = null;
+  if (sim) sim.running = false;
+  sim = null;
+  trails = {};
+  soundedThrows.clear();
+  soundedCatches.clear();
+  particles = [];
+  isPaused = false;
+  pauseTimestamp = null;
+  totalPausedDuration = 0;
+  currentSiteswapStr = '';
+  toggleBtn.textContent = '▶ Juggle';
+  toggleBtn.classList.remove('btn-stop');
+  toggleBtn.classList.add('btn-primary');
+
+  // Draw placeholder
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#0a0a18');
+  bgGrad.addColorStop(0.5, '#0e0e1e');
+  bgGrad.addColorStop(1, '#080814');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#4a486a';
+  ctx.font = '500 14px "Inter", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Enter a siteswap and press ▶ Juggle', W / 2, H / 2 - 10);
+  ctx.fillStyle = '#33315a';
+  ctx.font = '400 11px "Inter", sans-serif';
+  ctx.fillText('Powered by real parabolic physics', W / 2, H / 2 + 10);
+}
+
+toggleBtn.addEventListener('click', toggleJuggling);
+siteswapInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') toggleJuggling(); });
+// ─── LIVE PARAMETER UPDATES ──────────────────────────────────────
+// Update tempo and dwell in real-time without restarting the simulation
+speedInput.addEventListener('input', () => {
+  if (!sim || !sim.running) return;
+  const bpm = parseInt(speedInput.value) || 280;
+  sim.beatSec = 60 / bpm;
+  soundedThrows.clear();
+  soundedCatches.clear();
+});
+
+dwellInput.addEventListener('input', () => {
+  if (!sim || !sim.running) return;
+  const dwell = parseFloat(dwellInput.value) || 0.5;
+  sim.dwellRatio = Math.max(0.1, Math.min(0.9, dwell));
+  soundedThrows.clear();
+  soundedCatches.clear();
+});
+
+// ─── PRESETS ───────────────────────────────────────────────────────
+
+const PRESETS = [
+  { name: 'Cascade', ss: '3' },
+  { name: 'Fountain', ss: '4' },
+  { name: '5-Cascade', ss: '5' },
+  { name: 'Shower (3b)', ss: '51' },
+  { name: 'Shower (4b)', ss: '71' },
+  { name: 'Half-Shower', ss: '53' },
+  { name: 'Flash', ss: '531' },
+  { name: 'Mill\'s Mess base', ss: '3' },
+  { name: '441', ss: '441' },
+  { name: '423', ss: '423' },
+  { name: '534', ss: '534' },
+  { name: '633', ss: '633' },
+  { name: '744', ss: '744' },
+  { name: 'Box', ss: '(4,2x)(2x,4)' },
+  { name: '7531', ss: '7531' },
+  { name: '97531', ss: '97531' },
+  { name: 'High-low', ss: '91' },
+  { name: 'Snake', ss: '51414' },
+  { name: 'Columns', ss: '(4,4)(4,0)(0,4)' },
+  { name: '5551', ss: '5551' },
+  { name: '55550', ss: '55550' },
+  { name: '6', ss: '6' },
+  { name: '7', ss: '7' },
+  { name: 'b97531', ss: 'b97531' },
+];
+
+const presetsDiv = document.getElementById('presets');
+
+PRESETS.filter(p => !p.ss.includes('(')).forEach(p => {
+  const chip = document.createElement('button');
+  chip.className = 'preset-chip';
+  chip.innerHTML = `<span class="num">${p.ss}</span>${p.name}`;
+  chip.addEventListener('click', () => {
+    siteswapInput.value = p.ss;
+    fullStop();
+    toggleJuggling();
+  });
+  presetsDiv.appendChild(chip);
+});
+
+// Start with placeholder
+fullStop();
+</script>
+
+</body>
+</html>
