@@ -7,7 +7,7 @@
 <meta name="description" content="Interactive physics-based siteswap juggling pattern simulator with real parabolic arcs and sound effects.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -31,11 +31,11 @@
     --danger: #ef4444;
     --radius: 14px;
     --radius-sm: 8px;
-    --max-w: 960px;
+    --max-w: 1400px;
   }
 
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
@@ -94,10 +94,10 @@
     position: relative;
   }
   header h1 {
-    font-family: 'Inter', sans-serif;
-    font-size: 2.2rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.4rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
     background: linear-gradient(135deg, var(--accent-bright) 0%, var(--pink) 50%, var(--cyan) 100%);
     background-size: 200% 200%;
     animation: gradientShift 6s ease-in-out infinite alternate;
@@ -203,7 +203,7 @@
     padding: 0 20px;
     height: 42px;
     border-radius: var(--radius-sm);
-    font-family: 'Inter', sans-serif;
+    font-family: 'DM Sans', sans-serif;
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
@@ -292,6 +292,41 @@
     width: 100%;
   }
 
+  /* ─── 3-Column Stage ─── */
+  .main-stage {
+    display: flex;
+    gap: 14px;
+    width: 100%;
+    max-width: var(--max-w);
+    align-items: flex-start;
+  }
+  .side-panel {
+    width: 240px;
+    min-width: 200px;
+    max-width: 240px;
+    flex-shrink: 0;
+    max-height: 700px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(124,108,240,0.2) transparent;
+    padding: 14px 12px;
+  }
+  .side-panel::-webkit-scrollbar { width: 4px; }
+  .side-panel::-webkit-scrollbar-track { background: transparent; }
+  .side-panel::-webkit-scrollbar-thumb { background: rgba(124,108,240,0.2); border-radius: 4px; }
+  .side-panel h3 {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--surface-solid);
+    padding: 8px 0 10px;
+    margin: -8px 0 0;
+  }
+  .main-stage .canvas-wrapper {
+    flex: 1;
+    min-width: 0;
+  }
+
   /* ─── Canvas ─── */
   .canvas-wrapper {
     position: relative;
@@ -318,7 +353,7 @@
     background: transparent;
   }
 
-  /* ─── Presets ─── */
+  /* ─── Presets (sidebar) ─── */
   .presets-section {
     width: 100%;
   }
@@ -333,35 +368,61 @@
   }
   .presets {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
   }
   .preset-chip {
     background: rgba(255,255,255,0.03);
     border: 1px solid var(--border);
     color: var(--text-dim);
-    padding: 5px 12px;
-    border-radius: 100px;
-    font-size: 0.72rem;
-    font-family: 'Inter', sans-serif;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-family: 'DM Sans', sans-serif;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.25s;
     letter-spacing: 0.01em;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .preset-chip:hover {
     border-color: var(--accent);
     color: var(--text);
     background: rgba(124,108,240,0.08);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(124,108,240,0.15);
+    box-shadow: 0 2px 8px rgba(124,108,240,0.12);
   }
   .preset-chip .num {
     color: var(--accent-bright);
     font-weight: 700;
     font-family: 'JetBrains Mono', monospace;
     margin-right: 5px;
+    font-size: 0.72rem;
+  }
+
+  /* Responsive: collapse to single column on narrow screens */
+  @media (max-width: 1100px) {
+    .main-stage {
+      flex-direction: column;
+      align-items: center;
+    }
+    .side-panel {
+      width: 100% !important;
+      max-width: 960px !important;
+      max-height: none;
+    }
+    .presets {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+    }
+    .preset-chip {
+      border-radius: 100px;
+      padding: 5px 12px;
+    }
   }
 
   /* ─── Legend ─── */
@@ -456,7 +517,7 @@
     border: none;
     padding: 0 14px;
     height: 100%;
-    font-family: 'Inter', sans-serif;
+    font-family: 'DM Sans', sans-serif;
     font-size: 0.78rem;
     font-weight: 500;
     cursor: pointer;
@@ -478,11 +539,11 @@
     font-weight: 600;
   }
 
-  /* ─── Equations Panel ─── */
-  .equations-panel {
+  /* ─── Trajectory Chart ─── */
+  .chart-panel {
     width: 100%;
   }
-  .equations-panel h3 {
+  .chart-panel h3 {
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.12em;
@@ -491,57 +552,11 @@
     margin-bottom: 10px;
     text-align: center;
   }
-  .equations-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-  }
-  .eq-card {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(255,255,255,0.02);
-    border: 1px solid var(--border);
+  .chart-panel canvas {
+    display: block;
+    width: 100%;
+    height: auto;
     border-radius: var(--radius-sm);
-    padding: 6px 12px;
-    min-width: 200px;
-    transition: border-color 0.3s, opacity 0.3s;
-  }
-  .eq-card.in-flight {
-    border-color: rgba(255,255,255,0.12);
-  }
-  .eq-card.held {
-    opacity: 0.35;
-  }
-  .eq-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    box-shadow: 0 0 6px currentColor;
-  }
-  .eq-text {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    font-family: 'JetBrains Mono', monospace;
-    line-height: 1.3;
-  }
-  .eq-formula {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--text);
-  }
-  .eq-values {
-    font-size: 0.65rem;
-    font-weight: 400;
-    color: var(--text-dim);
-  }
-  @media (max-width: 768px) {
-    .eq-card { min-width: 160px; padding: 5px 8px; }
-    .eq-formula { font-size: 0.65rem; }
-    .eq-values { font-size: 0.6rem; }
   }
 </style>
 </head>
@@ -560,10 +575,6 @@
 </header>
 
 <div class="app">
-
-  <div class="canvas-wrapper">
-    <canvas id="canvas" width="920" height="600"></canvas>
-  </div>
 
   <div class="glass-card">
     <div class="controls" id="controls">
@@ -611,9 +622,20 @@
 
   <div class="error-msg" id="errorMsg"></div>
 
-  <div class="glass-card presets-section">
-    <h3>Quick Patterns</h3>
-    <div class="presets" id="presets"></div>
+  <div class="main-stage">
+    <div class="side-panel side-left glass-card chart-panel" id="chartPanel" style="display:none;">
+      <h3>Trajectories</h3>
+      <canvas id="trajChart"></canvas>
+    </div>
+
+    <div class="canvas-wrapper">
+      <canvas id="canvas" width="920" height="700"></canvas>
+    </div>
+
+    <div class="side-panel side-right glass-card presets-section">
+      <h3>Quick Patterns</h3>
+      <div class="presets" id="presets"></div>
+    </div>
   </div>
 
   <div class="info-bar glass-card" id="infoBar">
@@ -621,11 +643,6 @@
     <span><span class="label">Period</span><span class="val" id="infoPeriod">—</span></span>
     <span><span class="label">Average</span><span class="val" id="infoAvg">—</span></span>
     <span><span class="label">Pattern</span><span class="val" id="infoPattern">—</span></span>
-  </div>
-
-  <div class="glass-card equations-panel" id="equationsPanel" style="display:none;">
-    <h3>Live Parabolic Equations</h3>
-    <div class="equations-grid" id="equationsGrid"></div>
   </div>
 
   <div class="glass-card legend">
@@ -807,8 +824,8 @@ function peakHeight(airtime) {
 
 // ─── RENDERING CONSTANTS ───────────────────────────────────────────
 
-const W = 920, H = 600;
-const HAND_Y = 490;
+const W = 920, H = 700;
+const HAND_Y = 580;
 const BALL_RADIUS = 13;
 const METER_TO_PX = 140;
 
@@ -1454,7 +1471,7 @@ function drawFrame(timestamp) {
 
   // Passing mode: label jugglers
   if (sim.passing) {
-    ctx.font = '600 11px "Inter", sans-serif';
+    ctx.font = '600 11px "DM Sans", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#6070cc';
@@ -1463,88 +1480,208 @@ function drawFrame(timestamp) {
     ctx.fillText('B', PASS_JUGGLER_B_X, H - 45);
   }
 
-  // ── Update equations dashboard ──
-  updateEquationsPanel(balls);
+  // ── Update trajectory chart ──
+  updateTrajectoryChart(balls);
 
   animId = requestAnimationFrame(drawFrame);
 }
 
-// ─── EQUATIONS PANEL (DOM-based) ───────────────────────────────────
+// ─── TRAJECTORY CHART ──────────────────────────────────────────────
+// Draws individual mini parabola charts per ball, laid out in a grid.
+// Each ball gets its own subplot — no overlap.
 
-const equationsPanel = document.getElementById('equationsPanel');
-const equationsGrid = document.getElementById('equationsGrid');
-let eqCards = {}; // keyed by ball id
+const trajCanvas = document.getElementById('trajChart');
+const trajCtx = trajCanvas.getContext('2d');
+const chartPanel = document.getElementById('chartPanel');
 
-function ensureEqCards(numBalls) {
-  // Create/remove cards to match ball count
-  const existing = Object.keys(eqCards).length;
-  if (existing === numBalls) return;
-
-  equationsGrid.innerHTML = '';
-  eqCards = {};
-  for (let i = 0; i < numBalls; i++) {
-    const color = BALL_COLORS[i % BALL_COLORS.length];
-    const card = document.createElement('div');
-    card.className = 'eq-card held';
-    card.innerHTML = `
-      <div class="eq-dot" style="background:${color}; color:${color};"></div>
-      <div class="eq-text">
-        <span class="eq-formula" id="eqF${i}">y = —</span>
-        <span class="eq-values" id="eqV${i}">waiting…</span>
-      </div>
-    `;
-    equationsGrid.appendChild(card);
-    eqCards[i] = card;
-  }
-}
-
-function updateEquationsPanel(balls) {
+function updateTrajectoryChart(balls) {
   if (!sim) return;
-  equationsPanel.style.display = '';
-  ensureEqCards(sim.numBalls);
+  chartPanel.style.display = '';
 
-  // Reset all to held
-  for (const id in eqCards) {
-    eqCards[id].className = 'eq-card held';
-  }
+  const c = trajCtx;
+  const numBalls = sim.numBalls;
 
+  // Dynamic canvas sizing: grid layout
+  const cols = 1;
+  const rows = numBalls;
+  const cellW = 210, cellH = 80;
+  const gap = 6;
+  const totalW = cellW + 16;
+  const totalH = rows * cellH + (rows - 1) * gap + 12;
+
+  trajCanvas.width = totalW;
+  trajCanvas.height = totalH;
+
+  // Background
+  c.fillStyle = '#080814';
+  c.fillRect(0, 0, totalW, totalH);
+
+  // Build lookup: ball id → curve data
+  const curveMap = {};
   for (const ball of balls) {
-    const card = eqCards[ball.id];
-    if (!card) continue;
-
-    const fEl = document.getElementById('eqF' + ball.id);
-    const vEl = document.getElementById('eqV' + ball.id);
-
     if (ball.eqData && ball.airFrac > 0) {
       const eq = ball.eqData;
       const T = eq.airtime;
-      const t = eq.t;
-      const peakM = eq.peakH / METER_TO_PX;
-      const v0y = T > 0 ? 2 * peakM / (T / 2) : 0;
-      const yM = v0y * t - 0.5 * GRAVITY * t * t;
-      const vxM = Math.abs((eq.catchX - eq.throwX) / T / METER_TO_PX);
-
-      card.className = 'eq-card in-flight';
-      card.style.borderColor = ball.color + '40';
-      fEl.textContent = `y = ${v0y.toFixed(1)}t \u2212 4.9t\u00B2`;
-      fEl.style.color = ball.color;
-      vEl.textContent = `t=${t.toFixed(2)}s  h=${yM.toFixed(2)}m  v\u2093=${vxM.toFixed(1)}m/s`;
-    } else if (ball.throwValue === 2) {
-      card.className = 'eq-card held';
-      fEl.textContent = 'hold';
-      fEl.style.color = '';
-      vEl.textContent = 'in hand';
-    } else if (ball.airFrac === -1) {
-      card.className = 'eq-card';
-      fEl.textContent = `throw ${ball.throwValue}`;
-      fEl.style.color = '';
-      vEl.textContent = 'dwell (scoop)';
-    } else {
-      card.className = 'eq-card held';
-      fEl.textContent = 'y = —';
-      fEl.style.color = '';
-      vEl.textContent = 'caught';
+      if (T > 0) {
+        const peakM = eq.peakH / METER_TO_PX;
+        const v0y = 2 * peakM / (T / 2);
+        curveMap[ball.id] = { color: ball.color, T, v0y, t: eq.t, frac: eq.frac };
+      }
     }
+    if (!curveMap[ball.id]) {
+      curveMap[ball.id] = null; // not in flight
+    }
+  }
+
+  for (let i = 0; i < numBalls; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const ox = 8;
+    const oy = 6 + row * (cellH + gap);
+    const color = BALL_COLORS[i % BALL_COLORS.length];
+    const cv = curveMap[i];
+
+    // Cell background
+    c.fillStyle = cv ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.008)';
+    if (c.roundRect) {
+      c.beginPath();
+      c.roundRect(ox, oy, cellW, cellH, 6);
+      c.fill();
+    } else {
+      c.fillRect(ox, oy, cellW, cellH);
+    }
+
+    // Cell border
+    c.strokeStyle = cv ? (color + '35') : 'rgba(120,100,255,0.06)';
+    c.lineWidth = 1;
+    if (c.roundRect) {
+      c.beginPath();
+      c.roundRect(ox, oy, cellW, cellH, 6);
+      c.stroke();
+    } else {
+      c.strokeRect(ox, oy, cellW, cellH);
+    }
+
+    // Ball label dot
+    c.fillStyle = color;
+    c.beginPath();
+    c.arc(ox + 10, oy + 10, 4, 0, Math.PI * 2);
+    c.fill();
+
+    // Ball number
+    c.fillStyle = cv ? color : '#3d3a5a';
+    c.font = '600 9px "JetBrains Mono", monospace';
+    c.textAlign = 'left';
+    c.textBaseline = 'middle';
+    c.fillText('#' + (i + 1), ox + 18, oy + 10);
+
+    // Chart area within cell
+    const ml = 28, mr = 6, mt = 22, mb = 14;
+    const cw = cellW - ml - mr;
+    const ch = cellH - mt - mb;
+
+    if (!cv) {
+      // Not in flight — show dimmed placeholder
+      c.fillStyle = '#2a2845';
+      c.font = '400 9px "JetBrains Mono", monospace';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText('in hand', ox + cellW / 2, oy + cellH / 2 + 4);
+      continue;
+    }
+
+    // Equation label
+    c.fillStyle = color + 'AA';
+    c.font = '500 8px "JetBrains Mono", monospace';
+    c.textAlign = 'right';
+    c.textBaseline = 'middle';
+    c.fillText('y=' + cv.v0y.toFixed(1) + 't\u22124.9t\u00B2', ox + cellW - mr, oy + 10);
+
+    // Axis scale for this curve
+    const maxT = cv.T * 1.1;
+    const peakH = cv.v0y * cv.v0y / (2 * GRAVITY);
+    const maxH = peakH * 1.2 || 0.5;
+
+    // Mini grid
+    c.strokeStyle = 'rgba(120,100,255,0.06)';
+    c.lineWidth = 0.5;
+    for (let g = 0.25; g < 1; g += 0.25) {
+      const gy = oy + mt + ch - g * ch;
+      c.beginPath(); c.moveTo(ox + ml, gy); c.lineTo(ox + ml + cw, gy); c.stroke();
+      const gx = ox + ml + g * cw;
+      c.beginPath(); c.moveTo(gx, oy + mt); c.lineTo(gx, oy + mt + ch); c.stroke();
+    }
+
+    // Mini axes
+    c.strokeStyle = 'rgba(120,100,255,0.15)';
+    c.lineWidth = 0.7;
+    c.beginPath();
+    c.moveTo(ox + ml, oy + mt);
+    c.lineTo(ox + ml, oy + mt + ch);
+    c.lineTo(ox + ml + cw, oy + mt + ch);
+    c.stroke();
+
+    // Tick labels
+    c.fillStyle = '#3d3a5a';
+    c.font = '400 7px "JetBrains Mono", monospace';
+    c.textAlign = 'center';
+    c.textBaseline = 'top';
+    c.fillText(maxT.toFixed(1) + 's', ox + ml + cw, oy + mt + ch + 2);
+    c.fillText('0', ox + ml, oy + mt + ch + 2);
+    c.textAlign = 'right';
+    c.textBaseline = 'middle';
+    c.fillText(peakH.toFixed(1) + 'm', ox + ml - 3, oy + mt);
+
+    // Full parabola (faded)
+    const steps = 50;
+    c.beginPath();
+    c.strokeStyle = color + '25';
+    c.lineWidth = 1.2;
+    for (let s = 0; s <= steps; s++) {
+      const t = (s / steps) * cv.T;
+      const h = cv.v0y * t - 0.5 * GRAVITY * t * t;
+      const x = ox + ml + (t / maxT) * cw;
+      const y = oy + mt + ch - (Math.max(0, h) / maxH) * ch;
+      if (s === 0) c.moveTo(x, y); else c.lineTo(x, y);
+    }
+    c.stroke();
+
+    // Progress arc (bright)
+    const pSteps = Math.max(1, Math.floor(cv.frac * steps));
+    c.beginPath();
+    c.strokeStyle = color;
+    c.lineWidth = 2;
+    c.shadowColor = color;
+    c.shadowBlur = 4;
+    for (let s = 0; s <= pSteps; s++) {
+      const t = (s / steps) * cv.T;
+      const h = cv.v0y * t - 0.5 * GRAVITY * t * t;
+      const x = ox + ml + (t / maxT) * cw;
+      const y = oy + mt + ch - (Math.max(0, h) / maxH) * ch;
+      if (s === 0) c.moveTo(x, y); else c.lineTo(x, y);
+    }
+    c.stroke();
+    c.shadowBlur = 0;
+
+    // Current dot
+    const curH = cv.v0y * cv.t - 0.5 * GRAVITY * cv.t * cv.t;
+    const dotX = ox + ml + (cv.t / maxT) * cw;
+    const dotY = oy + mt + ch - (Math.max(0, curH) / maxH) * ch;
+    c.fillStyle = color;
+    c.beginPath();
+    c.arc(dotX, dotY, 3.5, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath();
+    c.arc(dotX - 0.8, dotY - 0.8, 1.2, 0, Math.PI * 2);
+    c.fill();
+
+    // Live values
+    c.fillStyle = '#6a6890';
+    c.font = '400 7px "JetBrains Mono", monospace';
+    c.textAlign = 'right';
+    c.textBaseline = 'bottom';
+    c.fillText('t=' + cv.t.toFixed(2) + 's h=' + Math.max(0, curH).toFixed(2) + 'm', ox + cellW - mr, oy + cellH - 2);
   }
 }
 
@@ -1562,7 +1699,7 @@ function drawJugglerAt(ctx, hs, centerX, gender, torsoColor) {
   const lhx = hs.L.x, lhy = hs.L.y;
   const rhx = hs.R.x, rhy = hs.R.y;
 
-  const headY = 420;
+  const headY = 510;
   const headRx = 17, headRy = 20;
   const neckY = headY + headRy + 2;
   const shoulderY = neckY + 10;
@@ -1581,97 +1718,240 @@ function drawJugglerAt(ctx, hs, centerX, gender, torsoColor) {
   ctx.arc(centerX, shoulderY + 30, 140, 0, Math.PI * 2);
   ctx.fill();
 
-  // Legs
-  const legThick = 7;
-  const lKneeX = centerX - 18, rKneeX = centerX + 18;
-  const lFootX = centerX - 28, rFootX = centerX + 28;
-  const legColor = '#3a3860';
-  const legHighlight = '#4a4878';
+  // ── CLOTHING — gender-specific ──
+  if (isGirl) {
+    // ── Girl: A-line dress covering torso + upper legs ──
+    const dressColor1 = '#b0406a';
+    const dressColor2 = '#802050';
+    const dressAccent = '#d4608a';
 
-  // Left leg
-  ctx.strokeStyle = legColor;
-  ctx.lineWidth = legThick;
-  ctx.beginPath();
-  ctx.moveTo(centerX - hipW * 0.5, hipY);
-  ctx.quadraticCurveTo(lKneeX - 4, kneeY, lFootX, footY);
-  ctx.stroke();
-  ctx.strokeStyle = legHighlight;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(centerX - hipW * 0.5, hipY);
-  ctx.quadraticCurveTo(lKneeX - 2, kneeY, lFootX, footY);
-  ctx.stroke();
+    // Legs (visible below dress)
+    const legThick = 6;
+    const legColor = '#c8a88a'; // skin-colored legs
+    const lFootX = centerX - 22, rFootX = centerX + 22;
+    const dressHemY = hipY + 22;
 
-  // Right leg
-  ctx.strokeStyle = legColor;
-  ctx.lineWidth = legThick;
-  ctx.beginPath();
-  ctx.moveTo(centerX + hipW * 0.5, hipY);
-  ctx.quadraticCurveTo(rKneeX + 4, kneeY, rFootX, footY);
-  ctx.stroke();
-  ctx.strokeStyle = legHighlight;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(centerX + hipW * 0.5, hipY);
-  ctx.quadraticCurveTo(rKneeX + 2, kneeY, rFootX, footY);
-  ctx.stroke();
+    ctx.strokeStyle = legColor;
+    ctx.lineWidth = legThick;
+    ctx.beginPath();
+    ctx.moveTo(centerX - 14, dressHemY);
+    ctx.lineTo(lFootX, footY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX + 14, dressHemY);
+    ctx.lineTo(rFootX, footY);
+    ctx.stroke();
 
-  // Shoes
-  ctx.fillStyle = '#2a2845';
-  ctx.beginPath();
-  ctx.ellipse(lFootX - 2, footY + 2, 12, 6, -0.15, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#343260';
-  ctx.beginPath();
-  ctx.ellipse(lFootX - 2, footY, 10, 5, -0.15, 0, Math.PI * 2);
-  ctx.fill();
+    // Shoes (smaller, cuter)
+    ctx.fillStyle = '#2a2845';
+    ctx.beginPath();
+    ctx.ellipse(lFootX - 1, footY + 1, 10, 5, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.ellipse(lFootX - 1, footY - 1, 8, 4, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#2a2845';
+    ctx.beginPath();
+    ctx.ellipse(rFootX + 1, footY + 1, 10, 5, 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.ellipse(rFootX + 1, footY - 1, 8, 4, 0.1, 0, Math.PI * 2);
+    ctx.fill();
 
-  ctx.fillStyle = '#2a2845';
-  ctx.beginPath();
-  ctx.ellipse(rFootX + 2, footY + 2, 12, 6, 0.15, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#343260';
-  ctx.beginPath();
-  ctx.ellipse(rFootX + 2, footY, 10, 5, 0.15, 0, Math.PI * 2);
-  ctx.fill();
+    // Dress body (A-line shape: narrow at shoulders, flared at hem)
+    const dressFlare = 38;
+    ctx.beginPath();
+    ctx.moveTo(centerX - shoulderW + 4, shoulderY);
+    ctx.quadraticCurveTo(centerX - shoulderW - 4, (shoulderY + dressHemY) / 2, centerX - dressFlare, dressHemY);
+    ctx.lineTo(centerX + dressFlare, dressHemY);
+    ctx.quadraticCurveTo(centerX + shoulderW + 4, (shoulderY + dressHemY) / 2, centerX + shoulderW - 4, shoulderY);
+    ctx.closePath();
+    const dressGrad = ctx.createLinearGradient(centerX, shoulderY, centerX, dressHemY);
+    dressGrad.addColorStop(0, dressColor1);
+    dressGrad.addColorStop(0.6, dressColor2);
+    dressGrad.addColorStop(1, shadeColor(dressColor2, -15));
+    ctx.fillStyle = dressGrad;
+    ctx.fill();
+    ctx.strokeStyle = dressAccent;
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
 
-  // Torso
-  ctx.beginPath();
-  ctx.moveTo(centerX - shoulderW, shoulderY);
-  ctx.lineTo(centerX - hipW, hipY);
-  ctx.lineTo(centerX + hipW, hipY);
-  ctx.lineTo(centerX + shoulderW, shoulderY);
-  ctx.closePath();
-  const tc = torsoColor;
-  const torsoGrad = ctx.createLinearGradient(centerX, shoulderY, centerX, hipY);
-  torsoGrad.addColorStop(0, tc);
-  torsoGrad.addColorStop(0.4, shadeColor(tc, -15));
-  torsoGrad.addColorStop(1, shadeColor(tc, -30));
-  ctx.fillStyle = torsoGrad;
-  ctx.fill();
-  ctx.strokeStyle = lightenColor(tc, 20);
-  ctx.lineWidth = 1;
-  ctx.stroke();
+    // Waist belt/ribbon
+    const waistY = shoulderY + 28;
+    ctx.fillStyle = dressAccent;
+    ctx.beginPath();
+    const waistW = shoulderW - 2 + (dressFlare - shoulderW + 2) * ((waistY - shoulderY) / (dressHemY - shoulderY));
+    ctx.ellipse(centerX, waistY, waistW, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-  // Collar
-  ctx.beginPath();
-  ctx.moveTo(centerX - 14, shoulderY);
-  ctx.quadraticCurveTo(centerX, shoulderY - 6, centerX + 14, shoulderY);
-  ctx.strokeStyle = lightenColor(tc, 40);
-  ctx.lineWidth = 2;
-  ctx.stroke();
+    // Small bow at waist
+    ctx.fillStyle = '#e06888';
+    ctx.beginPath();
+    ctx.moveTo(centerX, waistY);
+    ctx.quadraticCurveTo(centerX - 8, waistY - 5, centerX - 6, waistY + 2);
+    ctx.quadraticCurveTo(centerX - 3, waistY + 4, centerX, waistY);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(centerX, waistY);
+    ctx.quadraticCurveTo(centerX + 8, waistY - 5, centerX + 6, waistY + 2);
+    ctx.quadraticCurveTo(centerX + 3, waistY + 4, centerX, waistY);
+    ctx.fill();
 
-  // Center line
-  ctx.beginPath();
-  ctx.moveTo(centerX, shoulderY + 8);
-  ctx.lineTo(centerX, hipY - 5);
-  ctx.strokeStyle = 'rgba(100, 90, 160, 0.25)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+    // Neckline (V-shaped)
+    ctx.beginPath();
+    ctx.moveTo(centerX - 16, shoulderY + 2);
+    ctx.quadraticCurveTo(centerX, shoulderY + 12, centerX + 16, shoulderY + 2);
+    ctx.strokeStyle = dressAccent;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Dress hem detail (scalloped edge)
+    ctx.strokeStyle = dressAccent + '80';
+    ctx.lineWidth = 1;
+    for (let dx = -dressFlare + 6; dx < dressFlare - 4; dx += 10) {
+      ctx.beginPath();
+      ctx.arc(centerX + dx, dressHemY, 5, Math.PI, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 'H' letter on dress chest area
+    const dressLetterY = shoulderY + (waistY - shoulderY) * 0.55;
+    ctx.font = 'bold 20px "Outfit", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.fillText('H', centerX, dressLetterY + 1);
+    ctx.fillStyle = 'rgba(255,200,220,0.35)';
+    ctx.fillText('H', centerX, dressLetterY);
+
+  } else {
+    // ── Boy: square T-shirt + jeans ──
+    const tshirtColor = '#3a6090';
+    const tshirtHighlight = '#4a78b0';
+    const jeansColor = '#2a3858';
+    const jeansHighlight = '#344870';
+
+    // Legs / jeans
+    const legThick = 8;
+    const lKneeX = centerX - 18, rKneeX = centerX + 18;
+    const lFootX = centerX - 28, rFootX = centerX + 28;
+
+    // Left leg (jeans)
+    ctx.strokeStyle = jeansColor;
+    ctx.lineWidth = legThick;
+    ctx.beginPath();
+    ctx.moveTo(centerX - hipW * 0.5, hipY);
+    ctx.quadraticCurveTo(lKneeX - 4, kneeY, lFootX, footY);
+    ctx.stroke();
+    ctx.strokeStyle = jeansHighlight;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(centerX - hipW * 0.5 + 1, hipY + 2);
+    ctx.quadraticCurveTo(lKneeX - 2, kneeY, lFootX + 1, footY);
+    ctx.stroke();
+
+    // Right leg
+    ctx.strokeStyle = jeansColor;
+    ctx.lineWidth = legThick;
+    ctx.beginPath();
+    ctx.moveTo(centerX + hipW * 0.5, hipY);
+    ctx.quadraticCurveTo(rKneeX + 4, kneeY, rFootX, footY);
+    ctx.stroke();
+    ctx.strokeStyle = jeansHighlight;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(centerX + hipW * 0.5 - 1, hipY + 2);
+    ctx.quadraticCurveTo(rKneeX + 2, kneeY, rFootX - 1, footY);
+    ctx.stroke();
+
+    // Shoes (sneakers)
+    ctx.fillStyle = '#1a1835';
+    ctx.beginPath();
+    ctx.ellipse(lFootX - 2, footY + 2, 13, 6, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#3b82f6';
+    ctx.beginPath();
+    ctx.ellipse(lFootX - 2, footY, 11, 5, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(lFootX - 7, footY + 1, 4, 2.5, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#1a1835';
+    ctx.beginPath();
+    ctx.ellipse(rFootX + 2, footY + 2, 13, 6, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#3b82f6';
+    ctx.beginPath();
+    ctx.ellipse(rFootX + 2, footY, 11, 5, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(rFootX + 7, footY + 1, 4, 2.5, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // T-shirt torso (boxy, square cut)
+    const tshirtBottom = hipY + 4;
+    ctx.beginPath();
+    ctx.moveTo(centerX - shoulderW - 2, shoulderY);
+    ctx.lineTo(centerX - shoulderW + 2, tshirtBottom);
+    ctx.lineTo(centerX + shoulderW - 2, tshirtBottom);
+    ctx.lineTo(centerX + shoulderW + 2, shoulderY);
+    ctx.closePath();
+    const tGrad = ctx.createLinearGradient(centerX, shoulderY, centerX, tshirtBottom);
+    tGrad.addColorStop(0, tshirtHighlight);
+    tGrad.addColorStop(0.3, tshirtColor);
+    tGrad.addColorStop(1, shadeColor(tshirtColor, -20));
+    ctx.fillStyle = tGrad;
+    ctx.fill();
+    ctx.strokeStyle = lightenColor(tshirtColor, 15);
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+
+    // Round neckline
+    ctx.beginPath();
+    ctx.arc(centerX, shoulderY + 2, 12, 0.15 * Math.PI, 0.85 * Math.PI);
+    ctx.strokeStyle = shadeColor(tshirtColor, -30);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // T-shirt hem
+    ctx.beginPath();
+    ctx.moveTo(centerX - shoulderW + 3, tshirtBottom);
+    ctx.lineTo(centerX + shoulderW - 3, tshirtBottom);
+    ctx.strokeStyle = shadeColor(tshirtColor, -25);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Subtle fold lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(centerX - 10, shoulderY + 15);
+    ctx.quadraticCurveTo(centerX - 8, (shoulderY + tshirtBottom) / 2, centerX - 12, tshirtBottom - 5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX + 10, shoulderY + 15);
+    ctx.quadraticCurveTo(centerX + 8, (shoulderY + tshirtBottom) / 2, centerX + 12, tshirtBottom - 5);
+    ctx.stroke();
+
+    // 'S' letter on chest
+    const letterY = shoulderY + (tshirtBottom - shoulderY) * 0.45;
+    ctx.font = 'bold 22px "Outfit", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillText('S', centerX, letterY + 1);
+    ctx.fillStyle = 'rgba(200,220,255,0.35)';
+    ctx.fillText('S', centerX, letterY);
+  }
 
   // Arms
   const armThick = 5.5;
-  const armColor = tc;
+  const armColor = isGirl ? '#b0406a' : '#3a6090'; // matches dress/tshirt
   const armSkin = '#c8a88a';
 
   const lElbow = { x: centerX - shoulderW - 18, y: shoulderY + 48 };
@@ -2213,10 +2493,8 @@ function fullStop() {
   pauseBtn.style.display = 'none';
   pauseBtn.textContent = '⏸ Pause';
 
-  // Hide equations
-  equationsPanel.style.display = 'none';
-  equationsGrid.innerHTML = '';
-  eqCards = {};
+  // Hide chart
+  chartPanel.style.display = 'none';
 
   const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
   bgGrad.addColorStop(0, '#0a0a18');
@@ -2226,18 +2504,18 @@ function fullStop() {
   ctx.fillRect(0, 0, W, H);
 
   ctx.fillStyle = '#4a486a';
-  ctx.font = '500 14px "Inter", sans-serif';
+  ctx.font = '500 14px "DM Sans", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   if (currentMode === 'passing') {
     ctx.fillText('Enter a 4-handed siteswap and press ▶ Juggle', W / 2, H / 2 - 10);
     ctx.fillStyle = '#33315a';
-    ctx.font = '400 11px "Inter", sans-serif';
+    ctx.font = '400 11px "DM Sans", sans-serif';
     ctx.fillText('Odd throws pass between jugglers · Even throws are self throws', W / 2, H / 2 + 10);
   } else {
     ctx.fillText('Enter a siteswap and press ▶ Juggle', W / 2, H / 2 - 10);
     ctx.fillStyle = '#33315a';
-    ctx.font = '400 11px "Inter", sans-serif';
+    ctx.font = '400 11px "DM Sans", sans-serif';
     ctx.fillText('Powered by real parabolic physics', W / 2, H / 2 + 10);
   }
 }
@@ -2265,46 +2543,136 @@ dwellInput.addEventListener('input', () => {
 // ─── PRESETS ───────────────────────────────────────────────────────
 
 const SOLO_PRESETS = [
+  // 3-ball
   { name: 'Cascade', ss: '3' },
-  { name: 'Fountain', ss: '4' },
-  { name: '5-Cascade', ss: '5' },
   { name: 'Shower (3b)', ss: '51' },
-  { name: 'Shower (4b)', ss: '71' },
   { name: 'Half-Shower', ss: '53' },
-  { name: 'Flash', ss: '531' },
-  { name: "Mill's Mess base", ss: '3' },
   { name: '441', ss: '441' },
   { name: '423', ss: '423' },
-  { name: '534', ss: '534' },
+  { name: '531', ss: '531' },
+  { name: '342', ss: '342' },
+  { name: '450', ss: '450' },
+  { name: '612', ss: '612' },
+  { name: '801', ss: '801' },
+  { name: '52233', ss: '52233' },
+  { name: '51414', ss: '51414' },
+  { name: '50505', ss: '50505' },
+  { name: '40131', ss: '40131' },
+  { name: '31425', ss: '31425' },
+  // 4-ball
+  { name: 'Fountain', ss: '4' },
+  { name: 'Shower (4b)', ss: '71' },
+  { name: 'Half-Shower (4b)', ss: '534' },
   { name: '633', ss: '633' },
-  { name: '744', ss: '744' },
+  { name: '552', ss: '552' },
+  { name: '5524', ss: '5524' },
+  { name: '7333', ss: '7333' },
   { name: '7531', ss: '7531' },
+  { name: '741', ss: '741' },
+  { name: '6451', ss: '6451' },
+  { name: '8044', ss: '8044' },
+  { name: '5641', ss: '5641' },
+  { name: '53444', ss: '53444' },
+  { name: '64514', ss: '64514' },
+  // 5-ball
+  { name: '5-Cascade', ss: '5' },
+  { name: '744', ss: '744' },
+  { name: '645', ss: '645' },
+  { name: '663', ss: '663' },
+  { name: '753', ss: '753' },
   { name: '97531', ss: '97531' },
-  { name: 'High-low', ss: '91' },
-  { name: 'Snake', ss: '51414' },
+  { name: '7555', ss: '75555' },
+  { name: '91', ss: '91' },
+  { name: '8555', ss: '85555' },
+  { name: '55514', ss: '55514' },
+  { name: '64645', ss: '64645' },
+  // 6+ ball
+  { name: '6-Fountain', ss: '6' },
+  { name: '7-Cascade', ss: '7' },
+  { name: '855', ss: '855' },
+  { name: '966', ss: '966' },
+  { name: 'b97531', ss: 'b97531' },
+  { name: '8', ss: '8' },
+  { name: '9', ss: '9' },
+  { name: 'a', ss: 'a' },
+  // Fun combos
   { name: '5551', ss: '5551' },
   { name: '55550', ss: '55550' },
-  { name: '6', ss: '6' },
-  { name: '7', ss: '7' },
-  { name: 'b97531', ss: 'b97531' },
+  { name: 'Yo-yo', ss: '24' },
+  { name: 'Oy-oy', ss: '42' },
+  { name: 'Factory', ss: '2334' },
+  { name: 'Tsunami', ss: 'a0101' },
+  { name: 'Machine', ss: '7272712' },
+  { name: '312', ss: '312' },
+  { name: '50141', ss: '50141' },
+  { name: '52512', ss: '52512' },
+  { name: '6040', ss: '6040' },
+  { name: '7131', ss: '7131' },
+  { name: 'Columns (4b)', ss: '4004' },
+  { name: 'Pendulum', ss: '330' },
+  { name: 'Weave', ss: '423423' },
+  { name: '522', ss: '522' },
+  { name: '900', ss: '900' },
+  { name: '5313', ss: '5313' },
+  { name: '7040', ss: '7040' },
+  { name: '7401', ss: '7401' },
+  { name: '8040', ss: '8040' },
+  { name: 'Sprung', ss: '9151' },
+  { name: 'Burke\'s', ss: '534534' },
+  { name: 'Rubenstein', ss: '52345' },
+  { name: 'c97531', ss: 'c97531' },
 ];
 
 const PASSING_PRESETS = [
-  { name: '4-ct (6 clubs)', ss: '7', desc: 'Classic every-others pass' },
-  { name: '3-ct (6 clubs)', ss: '786', desc: 'Pass-self-self' },
-  { name: '2-ct (6 clubs)', ss: '77', desc: 'Every beat is a pass' },
-  { name: 'Shower pass', ss: '91', desc: '9-ball shower passing' },
-  { name: '5-ct (6 clubs)', ss: '78686', desc: 'Pass-self-self-self-self' },
-  { name: 'Pass-pass-self (7)', ss: '996', desc: '7 objects fast' },
-  { name: 'Jim\'s 3-ct (7)', ss: '978', desc: '7 objects, 3-count' },
-  { name: '1-ct (6 clubs)', ss: '7', desc: 'Thunder shower' },
-  { name: 'Why Not (7)', ss: '97', desc: 'Fast 7-object passing' },
-  { name: 'Martin\'s (6)', ss: '7868', desc: '6 objects, 4-period' },
-  { name: 'Mild Madness (6)', ss: '786', desc: '6 objects, 3-count' },
-  { name: 'Hefty (7)', ss: '966', desc: '7 objects, fun timing' },
-  { name: 'Parsnip (7)', ss: '9968926', desc: 'Complex 7-object' },
-  { name: '5-ball pass', ss: '5', desc: '5 objects, every-others' },
-  { name: 'French 3-ct (6)', ss: '756', desc: '6 objects, French-style' },
+  // 6 objects
+  { name: '4-count', ss: '7', desc: 'Classic every-others' },
+  { name: '3-count', ss: '786', desc: 'Pass-self-self' },
+  { name: '2-count', ss: '77', desc: 'Every beat a pass' },
+  { name: '5-count', ss: '78686', desc: 'Pass then 4 selfs' },
+  { name: '1-count', ss: '777', desc: 'All passes' },
+  { name: 'French 3-ct', ss: '756', desc: '6 obj French-style' },
+  { name: 'Martin\'s', ss: '7868', desc: '6 obj, 4-period' },
+  { name: 'Bookends', ss: '7786', desc: '6 obj bookends' },
+  { name: 'Jim\'s 2-ct', ss: '77686', desc: '6 obj Jim\'s' },
+  { name: 'Gorham\'s', ss: '78672', desc: '6 obj Gorham' },
+  { name: 'Chocolate Bar', ss: '77786', desc: '6 obj chocolate' },
+  { name: 'Holy Grail (6)', ss: '786', desc: 'Smooth 3-count' },
+  { name: 'Vitoria', ss: '77862', desc: '6 obj Vitoria' },
+  { name: 'Not Likely', ss: '7786866', desc: '6 obj complex' },
+  // 7 objects
+  { name: 'Pass-pass-self', ss: '996', desc: '7 obj PPS' },
+  { name: 'Why Not', ss: '97', desc: '7 obj 2-count' },
+  { name: 'Jim\'s 3-ct', ss: '978', desc: '7 obj 3-count' },
+  { name: 'Hefty', ss: '966', desc: '7 obj fun timing' },
+  { name: '7-obj 1-ct', ss: '9', desc: 'All passes (7)' },
+  { name: 'Parsnip', ss: '9968926', desc: '7 obj complex' },
+  { name: 'Aspirin', ss: '996', desc: '7 obj aspirin' },
+  { name: '7-obj 4-ct', ss: '96686', desc: '7 obj 4-count' },
+  // 5 objects
+  { name: '5-obj 4-ct', ss: '5', desc: '5 obj every-others' },
+  { name: '5-obj 3-ct', ss: '564', desc: '5 obj 3-count' },
+  { name: '5-obj 2-ct', ss: '55', desc: '5 obj 2-count' },
+  { name: '5-obj shower', ss: '91', desc: 'Shower passing' },
+  // 8 objects
+  { name: '8-obj 2-ct', ss: 'b9', desc: '8 obj 2-count' },
+  { name: '8-obj 3-ct', ss: 'a9a', desc: '8 obj 3-count' },
+  { name: '8-obj 4-ct', ss: 'b', desc: '8 obj every-others' },
+  // More 6 obj
+  { name: 'Techno', ss: '78686', desc: '6 obj techno' },
+  { name: 'Funky', ss: '7786862', desc: '6 obj funky' },
+  { name: 'Woody', ss: '78662', desc: '6 obj woody' },
+  { name: 'Lampshade', ss: '77266', desc: '6 obj lampshade' },
+  { name: '6-ct', ss: '786868', desc: '6 obj 6-count' },
+  { name: 'Toast', ss: '72786', desc: '6 obj toast' },
+  // More 7 obj
+  { name: '7-obj 5-ct', ss: '966868', desc: '7 obj 5-count' },
+  { name: '7-obj 2-ct', ss: '99', desc: '7 obj 2-count fast' },
+  { name: 'Bananas (7)', ss: '97866', desc: '7 obj bananas' },
+  { name: 'Inverted Parsnip', ss: '9689926', desc: '7 obj inverted' },
+  // 4 objects
+  { name: '4-obj pass', ss: '3', desc: '4 obj basic pass' },
+  { name: '4-obj 2-ct', ss: '33', desc: '4 obj 2-count' },
+  { name: '4-obj shower', ss: '51', desc: '4 obj shower' },
 ];
 
 const presetsDiv = document.getElementById('presets');
@@ -2326,8 +2694,19 @@ function updatePresets() {
   });
 }
 
+// ─── AUTO-START: passing 77 with clubs ─────────────────────────────
+currentMode = 'passing';
+document.querySelectorAll('.mode-btn').forEach(b => {
+  b.classList.toggle('active', b.dataset.mode === 'passing');
+});
+currentPropType = 'clubs';
+document.querySelectorAll('.prop-btn').forEach(b => {
+  b.classList.toggle('active', b.dataset.prop === 'clubs');
+});
+document.getElementById('spinGroup').style.display = '';
+siteswapInput.value = '77';
 updatePresets();
-fullStop();
+startJuggling();
 </script>
 
 </body>
