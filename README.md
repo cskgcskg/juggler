@@ -1,99 +1,52 @@
-# 🤹 Siteswap Explorer
+# Siteswap Explorer 🤹
+> An interactive, physics-based siteswap juggling pattern simulator built for the web.
 
-**A physics-based juggling pattern simulator** — enter any valid siteswap and watch it come to life with realistic parabolic arcs, sound effects, and a charming jester-hat-wearing juggler.
+## Overview
+Siteswap Explorer is a web-based juggling simulator that goes beyond simple animations. It uses real parabolic physics, precise airtime calculations, and dynamic audio synthesis to create a realistic and educational visualization of juggling patterns. 
 
-![Built with](https://img.shields.io/badge/Built%20with-HTML%20%2F%20CSS%20%2F%20JS-blueviolet)
-![No dependencies](https://img.shields.io/badge/Dependencies-None-green)
-![License](https://img.shields.io/badge/License-MIT-blue)
-
----
+Whether you're exploring classic solo siteswaps like `531` or diving into complex 4-handed passing patterns like `786` (3-count), this tool breaks down the math and physics behind juggling in real time.
 
 ## ✨ Features
 
-- **Real siteswap physics** — parabolic gravity arcs where taller throws take longer, just like real juggling
-- **Balls & Clubs** — toggle between spherical balls and rotating clubs (single/double/triple spins based on throw height)
-- **Pause & Resume** — freeze the simulation mid-air and resume seamlessly
-- **Real-time controls** — adjust tempo (BPM) and dwell ratio live without restarting
-- **Sound effects** — synthesised throw/catch sounds via Web Audio API (toggleable)
-- **20+ preset patterns** — from basic cascade (`3`) to complex patterns like `b97531`
-- **Detailed juggler** — animated character with jester hat, facial features, and glowing hands
-- **Particle effects** — burst particles on throws and catches
-- **Fully responsive** — works on desktop, tablet, and mobile
-- **Zero dependencies** — single `index.html` file, no build step needed
+- **Physics-Based Engine**: Balls and clubs follow real-world parabolic arcs governed by gravity. Throw height correlates accurately with airtime.
+- **Solo & Passing Modes**:
+  - **Solo**: Explore standard siteswaps (e.g., cascades, fountains, showers, and complex mixed patterns).
+  - **Passing**: Simulate two jugglers facing each other using 4-handed siteswap notation. Odd throws pass between jugglers, while even throws are self-throws.
+- **Prop Customization**: Swap between balls and clubs. Adjust the number of spins for club throws (1×, 2×, 3×).
+- **Live Trajectory Charts**: View real-time kinematics. Each prop gets its own mini-chart detailing the mathematical equation of its current parabolic flight ($y = v_0t - \frac{1}{2}gt^2$).
+- **Generative Audio**: Employs the Web Audio API to procedurally generate distinct sound effects for throws, passes, and catches.
+- **Adjustable Timing**: Dynamically tweak the tempo (BPM) and dwell ratio (the fraction of a beat the prop spends in the hand).
+- **Preset Library**: Includes dozens of built-in patterns ranging from basic 3-ball cascades to intricate 7-object passing sequences.
 
 ## 🚀 Getting Started
 
-```bash
-# Clone the repo
-git clone https://github.com/cskgcskg/juggler.git
+The simulator is built entirely with vanilla web technologies (HTML, CSS, and JavaScript). No build steps or heavy frameworks are required.
 
-# Open in browser — that's it!
-open index.html
-```
+To run the project locally:
+1. Clone the repository.
+2. Open `index.html` in any modern web browser.
 
-Or simply download `index.html` and double-click to open.
+## 🧠 What is Siteswap?
 
-## 🎮 How to Use
+Siteswap is a mathematical notation used by jugglers to describe juggling patterns. Each digit represents how many "beats" a prop stays in the air:
+- `3`: A standard throw that crosses to the other hand (e.g., 3-ball cascade).
+- `4`: A higher throw that stays in the same hand (e.g., 4-ball fountain).
+- `0`: An empty hand (a rest beat).
+- `1`: A quick zip or handoff to the other hand.
+- `2`: A momentary hold in the same hand.
+- **Odd digits** change hands; **Even digits** return to the same hand.
 
-1. **Enter a siteswap** in the input field (e.g. `3`, `531`, `97531`)
-2. **Click ▶ Juggle** to start the simulation
-3. **Click ⏸ Pause** to freeze, **▶ Resume** to continue
-4. **Switch props** between 🎾 Balls and 🪇 Clubs
-5. **Adjust tempo** and **dwell ratio** in real-time while juggling
-6. **Click any preset** to quickly load popular patterns
+### Passing Mode (4-Handed Siteswap)
+In passing mode, beats alternate between Juggler A and Juggler B. 
+- **Odd throws** cross between jugglers (passes).
+- **Even throws** stay with the same juggler (selfs).
+- *Example:* `7` is a classic 6-object pass (every throw crosses).
 
-## 📖 Siteswap Notation
+## 🛠️ Tech Stack
+- **HTML5 Canvas:** Fully custom physics rendering and particle systems.
+- **Vanilla JavaScript:** Zero dependencies. Custom scheduling, physics, and siteswap parsing engine.
+- **Web Audio API:** Real-time synthesized sound effects (oscillators and gain ramps).
+- **CSS3:** Modern UI with glassmorphism, responsive grid layouts, and animated gradients.
 
-| Digit | Meaning |
-|-------|---------|
-| `0` | Empty beat (no ball) |
-| `1` | Quick handoff |
-| `2` | Hold (ball stays in same hand) |
-| `3` | Standard 3-ball cascade throw |
-| `4` | Fountain throw (returns to same hand) |
-| `5+` | Higher throws with longer airtime |
-| `a-z` | Values 10-35 (hex-style) |
-
-**Odd** numbers cross to the other hand. **Even** numbers return to the same hand.
-
-### Popular Patterns
-
-| Pattern | Name | Balls |
-|---------|------|-------|
-| `3` | Cascade | 3 |
-| `4` | Fountain | 4 |
-| `531` | 531 | 3 |
-| `441` | 441 | 3 |
-| `51` | 3-Ball Shower | 3 |
-| `97531` | 97531 | 5 |
-| `b97531` | b97531 | 6 |
-
-## 🛠 Tech Stack
-
-- **HTML5 Canvas** — all rendering
-- **Web Audio API** — synthesised sound effects
-- **Vanilla CSS** — glassmorphism UI with responsive design
-- **Vanilla JavaScript** — no frameworks, no dependencies
-- **Google Fonts** — Inter + JetBrains Mono
-
-## 🏗 Architecture
-
-Everything lives in a single `index.html` file:
-
-- **Siteswap validator** — validates patterns using the averaging rule
-- **Physics engine** — calculates parabolic trajectories with real gravity
-- **Beat scheduler** — maps ball positions to timing using BPM and dwell ratio
-- **Renderer** — Canvas 2D drawing with trails, particles, and glow effects
-- **Audio engine** — Web Audio oscillators for throw/catch feedback
-
-## 📱 Browser Support
-
-Works in all modern browsers:
-- Chrome / Edge 80+
-- Firefox 75+
-- Safari 14+
-- Mobile browsers (iOS Safari, Chrome Android)
-
-## 📄 License
-
-MIT — do whatever you want with it.
+## ⚖️ License
+[MIT License](LICENSE)
