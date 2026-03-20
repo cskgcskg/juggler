@@ -31,7 +31,7 @@
     --danger: #ef4444;
     --radius: 14px;
     --radius-sm: 8px;
-    --max-w: 740px;
+    --max-w: 960px;
   }
 
   body {
@@ -496,7 +496,7 @@
 <div class="app">
 
   <div class="canvas-wrapper">
-    <canvas id="canvas" width="700" height="600"></canvas>
+    <canvas id="canvas" width="920" height="600"></canvas>
   </div>
 
   <div class="glass-card">
@@ -528,6 +528,13 @@
           <button class="spin-btn" data-spin="3">3×</button>
         </div>
       </div>
+      <div class="control-group">
+        <label>Mode</label>
+        <div class="prop-toggle">
+          <button class="mode-btn active" data-mode="solo">🤹 Solo</button>
+          <button class="mode-btn" data-mode="passing">🤹‍♂️🤹‍♀️ Passing</button>
+        </div>
+      </div>
       <div class="control-group" style="flex-direction:row; gap:8px; align-items:flex-end;">
         <button class="btn btn-primary" id="toggleBtn" style="min-width:110px; text-align:center;">▶ Juggle</button>
         <button class="btn btn-sound active" id="soundBtn" title="Toggle sound">🔊</button>
@@ -556,6 +563,10 @@
     <code>0</code> = empty beat, <code>1</code> = a quick handoff, <code>2</code> = a hold.
     Try patterns like <b>441</b>, <b>531</b>, <b>97531</b>, or <b>b</b> (hex for 11).
     The simulator uses real parabolic gravity arcs — taller throws take longer, just like real life.
+    <br><br>
+    <b>Passing mode</b> uses 4-handed siteswap: beats alternate between juggler A and B.
+    <b>Odd</b> throws cross between jugglers (passes); <b>even</b> throws stay with the same juggler (selfs).
+    Try <code>7</code> for a classic 6-club pass, or <code>786</code> for 3-count.
   </div>
 </div>
 
@@ -566,7 +577,6 @@
 <script>
 // ─── SAFARI POLYFILLS ──────────────────────────────────────────────
 
-// Polyfill for CanvasRenderingContext2D.ellipse (missing in Safari < 16.4)
 if (!CanvasRenderingContext2D.prototype.ellipse) {
   CanvasRenderingContext2D.prototype.ellipse = function(cx, cy, rx, ry, rotation, startAngle, endAngle, anticlockwise) {
     this.save();
@@ -578,7 +588,6 @@ if (!CanvasRenderingContext2D.prototype.ellipse) {
   };
 }
 
-// Helper: convert hex color + alpha (0-255) to rgba() string (Safari-safe)
 function hexAlpha(hex, alpha) {
   var num = parseInt(hex.replace('#', ''), 16);
   var r = (num >> 16) & 255;
@@ -587,7 +596,7 @@ function hexAlpha(hex, alpha) {
   return 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha / 255).toFixed(3) + ')';
 }
 
-// ─── AUDIO ENGINE (Web Audio API) ────────────────────────────────
+// ─── AUDIO ENGINE ────────────────────────────────────────────────
 
 let audioCtx = null;
 let soundEnabled = true;
@@ -597,52 +606,58 @@ function initAudio() {
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 }
 
-// Short percussive "tock" for throws — pitch depends on throw value
 function playThrowSound(throwValue) {
   if (!soundEnabled || !audioCtx) return;
   const now = audioCtx.currentTime;
-
-  // Higher throws = lower pitch, giving a sense of weight
   const baseFreq = 800 - Math.min(throwValue * 40, 500);
-
-  // Oscillator — short blip
   const osc = audioCtx.createOscillator();
   osc.type = 'triangle';
   osc.frequency.setValueAtTime(baseFreq, now);
   osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.4, now + 0.08);
-
-  // Amplitude envelope
   const gain = audioCtx.createGain();
   gain.gain.setValueAtTime(0.12, now);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-
   osc.connect(gain);
   gain.connect(audioCtx.destination);
   osc.start(now);
   osc.stop(now + 0.12);
 }
 
-// Softer "catch" sound
+function playPassSound(throwValue) {
+  if (!soundEnabled || !audioCtx) return;
+  const now = audioCtx.currentTime;
+  // Passing gets a distinctive deeper tone with a slight warble
+  const baseFreq = 500 - Math.min(throwValue * 30, 300);
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(baseFreq, now);
+  osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.06);
+  osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.3, now + 0.12);
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.08, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.18);
+}
+
 function playCatchSound() {
   if (!soundEnabled || !audioCtx) return;
   const now = audioCtx.currentTime;
-
   const osc = audioCtx.createOscillator();
   osc.type = 'sine';
   osc.frequency.setValueAtTime(1200, now);
   osc.frequency.exponentialRampToValueAtTime(600, now + 0.04);
-
   const gain = audioCtx.createGain();
   gain.gain.setValueAtTime(0.06, now);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-
   osc.connect(gain);
   gain.connect(audioCtx.destination);
   osc.start(now);
   osc.stop(now + 0.08);
 }
 
-// Sound toggle button
 const soundBtn = document.getElementById('soundBtn');
 soundBtn.addEventListener('click', () => {
   soundEnabled = !soundEnabled;
@@ -680,6 +695,28 @@ function validateSiteswap(vals) {
   return { ok: true, numBalls, period };
 }
 
+// ─── PASSING VALIDATION ────────────────────────────────────────────
+// For passing, we use "4-handed siteswap" interpretation:
+// The siteswap digits represent throws in a sequence where beats alternate
+// between juggler A and juggler B. Even throws stay with the same juggler,
+// odd throws cross to the other juggler (a "pass").
+
+function validatePassingSiteswap(vals) {
+  // In 4-handed siteswap, the average must be an integer — that's the total
+  // number of objects shared between both jugglers.
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  if (Math.abs(avg - Math.round(avg)) > 1e-9) return { ok: false, msg: `Average ${avg.toFixed(2)} is not an integer — invalid passing siteswap.` };
+  const numBalls = Math.round(avg);
+  const period = vals.length;
+  const landing = new Set();
+  for (let i = 0; i < period; i++) {
+    const land = (i + vals[i]) % period;
+    if (landing.has(land)) return { ok: false, msg: `Two balls land on the same beat — collision at beat ${land}.` };
+    landing.add(land);
+  }
+  return { ok: true, numBalls, period };
+}
+
 // ─── PHYSICS / SIMULATION ──────────────────────────────────────────
 
 const GRAVITY = 9.81;
@@ -698,12 +735,19 @@ function peakHeight(airtime) {
 
 // ─── RENDERING CONSTANTS ───────────────────────────────────────────
 
-const W = 700, H = 600;
+const W = 920, H = 600;
 const HAND_Y = 490;
-const HAND_SPREAD = 140;
-const CENTER_X = W / 2;
 const BALL_RADIUS = 13;
 const METER_TO_PX = 140;
+
+// Solo mode layout (centered)
+const SOLO_CENTER_X = W / 2;
+const SOLO_HAND_SPREAD = 140;
+
+// Passing mode layout (two jugglers facing each other)
+const PASS_JUGGLER_A_X = 230;  // Left juggler center
+const PASS_JUGGLER_B_X = 690;  // Right juggler center
+const PASS_HAND_SPREAD = 70;   // Tighter hand spread for passing
 
 const BALL_COLORS = [
   '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7',
@@ -712,27 +756,24 @@ const BALL_COLORS = [
   '#a78bfa', '#f9a8d4', '#67e8f9', '#cbd5e1', '#6b7280'
 ];
 
-// ─── SIMULATOR STATE ───────────────────────────────────────────────
+// ─── STATE ─────────────────────────────────────────────────────────
 
 let sim = null;
 let animId = null;
 const MAX_TRAIL = 18;
 let trails = {};
-
-// Sound tracking: keep track of which beats we've already played sounds for
 let soundedThrows = new Set();
 let soundedCatches = new Set();
-
-// Particle system for throw effects
 let particles = [];
-
-// Pause/resume tracking
 let isPaused = false;
-let pauseTimestamp = null;  // the raw performance timestamp when paused
-let totalPausedDuration = 0; // accumulated paused ms
+let pauseTimestamp = null;
+let totalPausedDuration = 0;
+let currentMode = 'solo'; // 'solo' or 'passing'
 
 function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
 function lcm(a, b) { return (a / gcd(a, b)) * b; }
+
+// ─── SOLO SIMULATOR ────────────────────────────────────────────────
 
 function createSimulator(vals, bpm, dwellRatio) {
   const { numBalls, period } = validateSiteswap(vals);
@@ -768,8 +809,11 @@ function createSimulator(vals, bpm, dwellRatio) {
   }
   const ballCycle = ballMap.slice(cycleStart, cycleStart + cycleLen);
 
+  const centerX = SOLO_CENTER_X;
+  const handSpread = SOLO_HAND_SPREAD;
+
   function handX(hand) {
-    return hand === 'L' ? CENTER_X - HAND_SPREAD : CENTER_X + HAND_SPREAD;
+    return hand === 'L' ? centerX - handSpread : centerX + handSpread;
   }
 
   function handForBeat(beat) {
@@ -783,7 +827,7 @@ function createSimulator(vals, bpm, dwellRatio) {
     if (v === 0 || v === 2) to = from;
     else if (v % 2 === 0) to = from;
     else to = from === 'L' ? 'R' : 'L';
-    return { v, from, to };
+    return { v, from, to, isPass: false };
   }
 
   function ballIdAt(beat) {
@@ -796,25 +840,163 @@ function createSimulator(vals, bpm, dwellRatio) {
   return {
     vals, period, numBalls, beatSec, dwellRatio, maxThrow,
     handX, handForBeat, throwInfoAt, ballIdAt,
+    passing: false,
     startTime: null,
     running: true
   };
 }
 
-// Compute ball positions at a given time
+// ─── PASSING SIMULATOR ─────────────────────────────────────────────
+// 4-handed siteswap: beats alternate between jugglers A and B.
+// Even beats → juggler A, odd beats → juggler B.
+// Within each juggler, their own sub-beats alternate L/R hands.
+// Odd-valued throws cross between jugglers ("passes").
+// Even-valued throws stay within the same juggler ("selfs").
+
+function createPassingSimulator(vals, bpm, dwellRatio) {
+  const validation = validatePassingSiteswap(vals);
+  const { numBalls, period } = validation;
+  const beatSec = 60 / bpm;
+  const maxThrow = Math.max(...vals);
+  const estimatedCycle = lcm(period, numBalls);
+  const simBeats = Math.max(estimatedCycle * 4 + maxThrow * 2, period * numBalls * 4 + maxThrow * 3);
+  const ballMap = new Array(simBeats).fill(-1);
+  let nextBall = 0;
+
+  for (let beat = 0; beat < simBeats; beat++) {
+    if (ballMap[beat] === -1 && nextBall < numBalls) {
+      ballMap[beat] = nextBall++;
+    }
+    if (ballMap[beat] >= 0) {
+      const v = vals[beat % period];
+      const landBeat = beat + v;
+      if (v > 0 && landBeat < simBeats) {
+        ballMap[landBeat] = ballMap[beat];
+      }
+    }
+  }
+
+  const cycleStart = maxThrow + numBalls + period;
+  let cycleLen = estimatedCycle;
+  for (let tryLen = estimatedCycle; tryLen <= simBeats / 3; tryLen += period) {
+    let match = true;
+    for (let i = cycleStart; i < cycleStart + tryLen; i++) {
+      if (i + tryLen >= simBeats) { match = false; break; }
+      if (ballMap[i] !== ballMap[i + tryLen]) { match = false; break; }
+    }
+    if (match) { cycleLen = tryLen; break; }
+  }
+  const ballCycle = ballMap.slice(cycleStart, cycleStart + cycleLen);
+
+  // Which juggler owns a given global beat?
+  // Even beats → A, odd beats → B
+  function jugglerForBeat(beat) {
+    return beat % 2 === 0 ? 'A' : 'B';
+  }
+
+  // Which hand within that juggler?
+  // We count how many beats this juggler has had so far.
+  // Juggler A gets beats 0, 2, 4, 6… → sub-beat index = beat/2
+  // Juggler B gets beats 1, 3, 5, 7… → sub-beat index = (beat-1)/2
+  function handForBeat(beat) {
+    const juggler = jugglerForBeat(beat);
+    const subBeat = juggler === 'A' ? beat / 2 : (beat - 1) / 2;
+    return Math.floor(subBeat) % 2 === 0 ? 'R' : 'L';
+  }
+
+  // Get the x position of a hand
+  function handX(juggler, hand) {
+    if (juggler === 'A') {
+      // Left juggler — L hand is further left, R hand is inner (toward B)
+      return hand === 'L' ? PASS_JUGGLER_A_X - PASS_HAND_SPREAD : PASS_JUGGLER_A_X + PASS_HAND_SPREAD;
+    } else {
+      // Right juggler — L hand is inner (toward A), R hand is further right
+      return hand === 'L' ? PASS_JUGGLER_B_X - PASS_HAND_SPREAD : PASS_JUGGLER_B_X + PASS_HAND_SPREAD;
+    }
+  }
+
+  function throwInfoAt(beat) {
+    const v = vals[beat % period];
+    const fromJuggler = jugglerForBeat(beat);
+    const fromHand = handForBeat(beat);
+
+    // Determine destination
+    let toJuggler, toHand;
+    const landBeat = beat + v;
+
+    if (v === 0) {
+      toJuggler = fromJuggler;
+      toHand = fromHand;
+    } else if (v === 2) {
+      toJuggler = fromJuggler;
+      toHand = fromHand;
+    } else {
+      // Where does the ball land?
+      toJuggler = jugglerForBeat(landBeat);
+      toHand = handForBeat(landBeat);
+    }
+
+    const isPass = toJuggler !== fromJuggler;
+
+    return {
+      v, from: fromHand, to: toHand,
+      fromJuggler, toJuggler,
+      isPass,
+      fromX: handX(fromJuggler, fromHand),
+      toX: handX(toJuggler, toHand)
+    };
+  }
+
+  function ballIdAt(beat) {
+    if (beat < 0) return -1;
+    if (beat < simBeats) return ballMap[beat];
+    const offset = ((beat - cycleStart) % cycleLen + cycleLen) % cycleLen;
+    return ballCycle[offset];
+  }
+
+  return {
+    vals, period, numBalls, beatSec, dwellRatio, maxThrow,
+    handX, handForBeat, throwInfoAt, ballIdAt, jugglerForBeat,
+    passing: true,
+    startTime: null,
+    running: true
+  };
+}
+
+// ─── BALL STATE COMPUTATION ────────────────────────────────────────
+
 function getBallStates(sim, now) {
   if (sim.startTime === null) sim.startTime = now;
   const elapsed = now - sim.startTime;
-  const { vals, period, numBalls, beatSec, dwellRatio, handX, throwInfoAt, ballIdAt } = sim;
+  const { vals, period, numBalls, beatSec, dwellRatio, maxThrow, throwInfoAt, ballIdAt } = sim;
 
   const globalBeatF = elapsed / beatSec;
   const currentBeat = Math.floor(globalBeatF);
 
   const balls = [];
-  const handStates = { L: { x: handX('L'), y: HAND_Y, holding: false }, R: { x: handX('R'), y: HAND_Y, holding: false } };
+
+  // Build hand states based on mode
+  let handStates;
+  if (sim.passing) {
+    handStates = {
+      A: {
+        L: { x: sim.handX('A', 'L'), y: HAND_Y, holding: false },
+        R: { x: sim.handX('A', 'R'), y: HAND_Y, holding: false }
+      },
+      B: {
+        L: { x: sim.handX('B', 'L'), y: HAND_Y, holding: false },
+        R: { x: sim.handX('B', 'R'), y: HAND_Y, holding: false }
+      }
+    };
+  } else {
+    handStates = {
+      L: { x: sim.handX('L'), y: HAND_Y, holding: false },
+      R: { x: sim.handX('R'), y: HAND_Y, holding: false }
+    };
+  }
 
   const dwellTime = dwellRatio * beatSec;
-  const lookback = sim.maxThrow + 4;
+  const lookback = maxThrow + 4;
 
   for (let ballId = 0; ballId < numBalls; ballId++) {
     let foundBeat = -1;
@@ -826,68 +1008,128 @@ function getBallStates(sim, now) {
     }
     if (foundBeat < 0) continue;
 
-    const { v, from, to } = throwInfoAt(foundBeat);
+    const info = throwInfoAt(foundBeat);
+    const v = info.v;
     if (v === 0) continue;
 
-    const fromX = handX(from);
-    const toX = handX(to);
+    let fromX, toX;
+    if (sim.passing) {
+      fromX = info.fromX;
+      toX = info.toX;
+    } else {
+      fromX = sim.handX(info.from);
+      toX = sim.handX(info.to);
+    }
+
     const beatStartTime = foundBeat * beatSec;
     const throwMoment = beatStartTime + dwellTime;
     const catchMoment = (foundBeat + v) * beatSec;
 
     let bx, by;
-    let phase = 'caught'; // for sound tracking
-    let frac = 0; // flight progress 0-1 (used for club rotation)
+    let phase = 'caught';
+    let frac = 0;
 
     if (v === 2) {
       bx = fromX;
       by = HAND_Y;
-      handStates[from].holding = true;
+      if (sim.passing) {
+        handStates[info.fromJuggler][info.from].holding = true;
+      } else {
+        handStates[info.from].holding = true;
+      }
 
     } else if (elapsed < throwMoment) {
-      // Dwell / scoop phase
       phase = 'dwell';
       const dwellFrac = (elapsed - beatStartTime) / dwellTime;
-      const scoopRadius = 22;
-      const scoopDir = from === 'L' ? 1 : -1;
+      const scoopRadius = sim.passing ? 16 : 22;
+
+      let scoopDir;
+      if (sim.passing) {
+        // Scoop direction: in passing, inner hands scoop inward
+        scoopDir = info.from === 'R' && info.fromJuggler === 'A' ? 1 :
+                   info.from === 'L' && info.fromJuggler === 'A' ? -1 :
+                   info.from === 'L' && info.fromJuggler === 'B' ? -1 : 1;
+      } else {
+        scoopDir = info.from === 'L' ? 1 : -1;
+      }
+
       bx = fromX + Math.sin(dwellFrac * Math.PI) * scoopRadius * scoopDir;
       by = HAND_Y + Math.sin(dwellFrac * Math.PI) * scoopRadius * 0.5;
-      handStates[from].holding = true;
-      handStates[from].x = bx;
-      handStates[from].y = by;
+
+      if (sim.passing) {
+        handStates[info.fromJuggler][info.from].holding = true;
+        handStates[info.fromJuggler][info.from].x = bx;
+        handStates[info.fromJuggler][info.from].y = by;
+      } else {
+        handStates[info.from].holding = true;
+        handStates[info.from].x = bx;
+        handStates[info.from].y = by;
+      }
 
     } else if (elapsed < catchMoment) {
-      // In the air
       phase = 'air';
       const airtime = catchMoment - throwMoment;
       const t = elapsed - throwMoment;
       frac = airtime > 0 ? t / airtime : 0;
 
-      const insideOffset = 30;
-      const outsideOffset = 20;
-      const throwX = fromX + (from === 'L' ? insideOffset : -insideOffset);
-      const catchX = toX + (to === 'L' ? -outsideOffset : outsideOffset);
+      let throwX, catchX;
+      if (sim.passing && info.isPass) {
+        // Passes: throw from inner side, catch on inner side
+        const throwOffset = 20;
+        const catchOffset = 20;
+        if (info.fromJuggler === 'A') {
+          throwX = fromX + throwOffset;
+          catchX = toX - catchOffset;
+        } else {
+          throwX = fromX - throwOffset;
+          catchX = toX + catchOffset;
+        }
+      } else {
+        const insideOffset = sim.passing ? 15 : 30;
+        const outsideOffset = sim.passing ? 10 : 20;
+        if (sim.passing) {
+          // Self throws within one juggler
+          const jugX = info.fromJuggler === 'A' ? PASS_JUGGLER_A_X : PASS_JUGGLER_B_X;
+          const fromIsInner = (info.fromJuggler === 'A' && info.from === 'R') ||
+                              (info.fromJuggler === 'B' && info.from === 'L');
+          const toIsInner = (info.toJuggler === 'A' && info.to === 'R') ||
+                            (info.toJuggler === 'B' && info.to === 'L');
+          throwX = fromX + (fromIsInner ? insideOffset : -insideOffset) * (info.fromJuggler === 'A' ? 1 : -1);
+          catchX = toX + (toIsInner ? -outsideOffset : outsideOffset) * (info.toJuggler === 'A' ? 1 : -1);
+        } else {
+          throwX = fromX + (info.from === 'L' ? insideOffset : -insideOffset);
+          catchX = toX + (info.to === 'L' ? -outsideOffset : outsideOffset);
+        }
+      }
 
       bx = throwX + (catchX - throwX) * frac;
-      const peakH = peakHeight(airtime) * METER_TO_PX;
+
+      // Passes fly lower (flatter arc) than self throws
+      const heightScale = (sim.passing && info.isPass) ? 0.55 : 1.0;
+      const peakH = peakHeight(airtime) * METER_TO_PX * heightScale;
       by = HAND_Y - 4 * peakH * frac * (1 - frac);
 
-      // ── THROW SOUND ──
+      // Sound
       const throwKey = `${foundBeat}_${ballId}`;
       if (frac < 0.15 && !soundedThrows.has(throwKey)) {
         soundedThrows.add(throwKey);
-        playThrowSound(v);
-        // Spawn particles at throw point
+        if (sim.passing && info.isPass) {
+          playPassSound(v);
+        } else {
+          playThrowSound(v);
+        }
         spawnParticles(bx, by, BALL_COLORS[ballId % BALL_COLORS.length], 5);
       }
 
     } else {
-      // Caught
       bx = toX;
       by = HAND_Y;
-      handStates[to].holding = true;
+      if (sim.passing) {
+        handStates[info.toJuggler][info.to].holding = true;
+      } else {
+        handStates[info.to].holding = true;
+      }
 
-      // ── CATCH SOUND ──
       const catchKey = `${foundBeat}_${ballId}_c`;
       if (!soundedCatches.has(catchKey)) {
         soundedCatches.add(catchKey);
@@ -896,10 +1138,16 @@ function getBallStates(sim, now) {
       }
     }
 
-    balls.push({ x: bx, y: by, color: BALL_COLORS[ballId % BALL_COLORS.length], id: ballId, airFrac: phase === 'air' ? frac : (phase === 'dwell' ? -1 : 0), throwValue: v });
+    balls.push({
+      x: bx, y: by,
+      color: BALL_COLORS[ballId % BALL_COLORS.length],
+      id: ballId,
+      airFrac: phase === 'air' ? frac : (phase === 'dwell' ? -1 : 0),
+      throwValue: v,
+      isPass: info.isPass || false
+    });
   }
 
-  // Clean up old sound keys to prevent memory leak
   if (soundedThrows.size > 500) soundedThrows.clear();
   if (soundedCatches.size > 500) soundedCatches.clear();
 
@@ -927,7 +1175,7 @@ function updateParticles() {
     const p = particles[i];
     p.x += p.vx;
     p.y += p.vy;
-    p.vy += 0.08; // gravity
+    p.vy += 0.08;
     p.life -= p.decay;
     if (p.life <= 0) particles.splice(i, 1);
   }
@@ -952,12 +1200,12 @@ const ctx = canvas.getContext('2d');
 
 function drawFrame(timestamp) {
   if (!sim || !sim.running) return;
-  if (isPaused) return; // frozen — don't draw new frames
+  if (isPaused) return;
 
   const now = (timestamp - totalPausedDuration) / 1000;
   const { balls, handStates, globalBeatF } = getBallStates(sim, now);
 
-  // Clear with subtle gradient background
+  // Background
   const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
   bgGrad.addColorStop(0, '#0a0a18');
   bgGrad.addColorStop(0.5, '#0e0e1e');
@@ -965,7 +1213,7 @@ function drawFrame(timestamp) {
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // Draw faint grid with fade
+  // Grid
   for (let y = 50; y < H; y += 50) {
     const gridAlpha = 0.04 + Math.sin(y * 0.01 + timestamp * 0.0005) * 0.015;
     ctx.strokeStyle = `rgba(120, 100, 255, ${gridAlpha})`;
@@ -976,17 +1224,31 @@ function drawFrame(timestamp) {
     ctx.stroke();
   }
 
-  // Draw body
-  drawJuggler(ctx, handStates);
+  // Draw juggler(s)
+  if (sim.passing) {
+    // Draw passing arc indicator between jugglers (subtle floor marking)
+    ctx.strokeStyle = 'rgba(124, 108, 240, 0.06)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 8]);
+    ctx.beginPath();
+    ctx.moveTo(PASS_JUGGLER_A_X + PASS_HAND_SPREAD + 20, HAND_Y + 10);
+    ctx.lineTo(PASS_JUGGLER_B_X - PASS_HAND_SPREAD - 20, HAND_Y + 10);
+    ctx.stroke();
+    ctx.setLineDash([]);
 
-  // Update & draw particles
+    drawJugglerAt(ctx, handStates.A, PASS_JUGGLER_A_X, false, '#4a4080');
+    drawJugglerAt(ctx, handStates.B, PASS_JUGGLER_B_X, true, '#804a60');
+  } else {
+    drawJugglerAt(ctx, handStates, SOLO_CENTER_X, false, '#4a4080');
+  }
+
+  // Particles
   updateParticles();
   drawParticles(ctx);
 
-  // Draw props (balls or clubs)
+  // Draw props
   const propType = currentPropType;
   if (propType === 'clubs') {
-    // Draw club trails differently (just dots)
     for (const ball of balls) {
       if (!trails[ball.id]) trails[ball.id] = [];
       trails[ball.id].push({ x: ball.x, y: ball.y });
@@ -1002,17 +1264,14 @@ function drawFrame(timestamp) {
         }
       }
     }
-    // Draw clubs
     for (const ball of balls) {
       drawClub(ctx, ball);
     }
   } else {
-    // Draw ball trails
     for (const ball of balls) {
       if (!trails[ball.id]) trails[ball.id] = [];
       trails[ball.id].push({ x: ball.x, y: ball.y });
       if (trails[ball.id].length > MAX_TRAIL) trails[ball.id].shift();
-
       const trail = trails[ball.id];
       if (trail.length > 2) {
         for (let i = 1; i < trail.length; i++) {
@@ -1026,19 +1285,19 @@ function drawFrame(timestamp) {
       }
     }
 
-    // Draw balls
     for (const ball of balls) {
-      // Glow
-      const grad = ctx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, BALL_RADIUS * 3);
-      grad.addColorStop(0, hexAlpha(ball.color, 0x40));
+      // Pass glow — slightly bigger/brighter for balls in flight between jugglers
+      const glowMult = (ball.isPass && ball.airFrac > 0) ? 1.3 : 1.0;
+
+      const grad = ctx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, BALL_RADIUS * 3 * glowMult);
+      grad.addColorStop(0, hexAlpha(ball.color, Math.floor(0x40 * glowMult)));
       grad.addColorStop(0.5, hexAlpha(ball.color, 0x15));
       grad.addColorStop(1, hexAlpha(ball.color, 0x00));
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(ball.x, ball.y, BALL_RADIUS * 3, 0, Math.PI * 2);
+      ctx.arc(ball.x, ball.y, BALL_RADIUS * 3 * glowMult, 0, Math.PI * 2);
       ctx.fill();
 
-      // Main ball with 3D shading
       const ballGrad = ctx.createRadialGradient(ball.x - 4, ball.y - 4, 1, ball.x + 2, ball.y + 2, BALL_RADIUS);
       ballGrad.addColorStop(0, '#ffffff');
       ballGrad.addColorStop(0.2, lightenColor(ball.color, 30));
@@ -1049,12 +1308,10 @@ function drawFrame(timestamp) {
       ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
       ctx.fill();
 
-      // Subtle outline
       ctx.strokeStyle = hexAlpha(shadeColor(ball.color, -70), 0x80);
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      // Specular highlight
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.beginPath();
       ctx.ellipse(ball.x - 3, ball.y - 4, 4, 2.5, -0.5, 0, Math.PI * 2);
@@ -1063,26 +1320,40 @@ function drawFrame(timestamp) {
   }
 
   // Beat indicator
+  const beatCenterX = W / 2;
   const currentBeatInPattern = Math.floor(globalBeatF) % sim.period;
   const beatY = H - 22;
-  const totalW = sim.period * 18;
-  const startX = CENTER_X - totalW / 2;
+  const totalBeatW = sim.period * 18;
+  const startBeatX = beatCenterX - totalBeatW / 2;
 
   for (let i = 0; i < sim.period; i++) {
-    const bx = startX + i * 18 + 9;
+    const bx = startBeatX + i * 18 + 9;
     const isActive = i === currentBeatInPattern;
 
+    // In passing mode, color-code beats by juggler
+    let dotColor = 'rgba(120,100,255,0.15)';
+    let activeColor = '#a89eff';
+    if (sim.passing) {
+      const juggler = sim.jugglerForBeat(i);
+      if (juggler === 'A') {
+        dotColor = 'rgba(100,120,255,0.2)';
+        activeColor = '#8090ff';
+      } else {
+        dotColor = 'rgba(255,100,120,0.2)';
+        activeColor = '#ff8090';
+      }
+    }
+
     if (isActive) {
-      // Active beat glow
       const pulseGrad = ctx.createRadialGradient(bx, beatY, 0, bx, beatY, 12);
-      pulseGrad.addColorStop(0, 'rgba(168,158,255,0.4)');
-      pulseGrad.addColorStop(1, 'rgba(168,158,255,0)');
+      pulseGrad.addColorStop(0, hexAlpha(activeColor.replace('#',''), 0x66));
+      pulseGrad.addColorStop(1, hexAlpha(activeColor.replace('#',''), 0x00));
       ctx.fillStyle = pulseGrad;
       ctx.beginPath();
       ctx.arc(bx, beatY, 12, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = '#a89eff';
+      ctx.fillStyle = activeColor;
       ctx.beginPath();
       ctx.arc(bx, beatY, 5, 0, Math.PI * 2);
       ctx.fill();
@@ -1092,7 +1363,7 @@ function drawFrame(timestamp) {
       ctx.textBaseline = 'middle';
       ctx.fillText(sim.vals[i].toString(36), bx, beatY);
     } else {
-      ctx.fillStyle = 'rgba(120,100,255,0.15)';
+      ctx.fillStyle = dotColor;
       ctx.beginPath();
       ctx.arc(bx, beatY, 4, 0, Math.PI * 2);
       ctx.fill();
@@ -1104,13 +1375,32 @@ function drawFrame(timestamp) {
     }
   }
 
+  // Passing mode: label jugglers
+  if (sim.passing) {
+    ctx.font = '600 12px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#6070cc';
+    ctx.fillText('A', PASS_JUGGLER_A_X, H - 45);
+    ctx.fillStyle = '#cc6070';
+    ctx.fillText('B', PASS_JUGGLER_B_X, H - 45);
+  }
+
   animId = requestAnimationFrame(drawFrame);
 }
 
-function drawJuggler(ctx, hs) {
+// ─── JUGGLER DRAWING (parametric) ──────────────────────────────────
+// Draws a juggler centered at centerX. If `mirrored`, the juggler faces left.
+// `torsoColor` lets us differentiate the two jugglers in passing mode.
+
+function drawJugglerAt(ctx, hs, centerX, mirrored, torsoColor) {
   ctx.save();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+
+  // In passing mode, hs has .L and .R; in solo mode, same structure
+  const lhx = hs.L.x, lhy = hs.L.y;
+  const rhx = hs.R.x, rhy = hs.R.y;
 
   const headY = 420;
   const headRx = 17, headRy = 20;
@@ -1121,24 +1411,20 @@ function drawJuggler(ctx, hs) {
   const hipW = 22;
   const kneeY = hipY + 38;
   const footY = hipY + 62;
-  const lhx = hs.L.x, lhy = hs.L.y;
-  const rhx = hs.R.x, rhy = hs.R.y;
 
-  // ── Ambient glow behind the juggler ──
-  const ambGlow = ctx.createRadialGradient(CENTER_X, shoulderY + 30, 10, CENTER_X, shoulderY + 30, 140);
+  // Ambient glow
+  const ambGlow = ctx.createRadialGradient(centerX, shoulderY + 30, 10, centerX, shoulderY + 30, 140);
   ambGlow.addColorStop(0, 'rgba(124, 108, 240, 0.06)');
   ambGlow.addColorStop(1, 'rgba(124, 108, 240, 0)');
   ctx.fillStyle = ambGlow;
   ctx.beginPath();
-  ctx.arc(CENTER_X, shoulderY + 30, 140, 0, Math.PI * 2);
+  ctx.arc(centerX, shoulderY + 30, 140, 0, Math.PI * 2);
   ctx.fill();
 
-  // ── Legs (drawn first, behind torso) ──
+  // Legs
   const legThick = 7;
-  const lKneeX = CENTER_X - 18, rKneeX = CENTER_X + 18;
-  const lFootX = CENTER_X - 28, rFootX = CENTER_X + 28;
-
-  // Leg gradient (dark pants)
+  const lKneeX = centerX - 18, rKneeX = centerX + 18;
+  const lFootX = centerX - 28, rFootX = centerX + 28;
   const legColor = '#3a3860';
   const legHighlight = '#4a4878';
 
@@ -1146,14 +1432,13 @@ function drawJuggler(ctx, hs) {
   ctx.strokeStyle = legColor;
   ctx.lineWidth = legThick;
   ctx.beginPath();
-  ctx.moveTo(CENTER_X - hipW * 0.5, hipY);
+  ctx.moveTo(centerX - hipW * 0.5, hipY);
   ctx.quadraticCurveTo(lKneeX - 4, kneeY, lFootX, footY);
   ctx.stroke();
-  // Highlight
   ctx.strokeStyle = legHighlight;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(CENTER_X - hipW * 0.5, hipY);
+  ctx.moveTo(centerX - hipW * 0.5, hipY);
   ctx.quadraticCurveTo(lKneeX - 2, kneeY, lFootX, footY);
   ctx.stroke();
 
@@ -1161,13 +1446,13 @@ function drawJuggler(ctx, hs) {
   ctx.strokeStyle = legColor;
   ctx.lineWidth = legThick;
   ctx.beginPath();
-  ctx.moveTo(CENTER_X + hipW * 0.5, hipY);
+  ctx.moveTo(centerX + hipW * 0.5, hipY);
   ctx.quadraticCurveTo(rKneeX + 4, kneeY, rFootX, footY);
   ctx.stroke();
   ctx.strokeStyle = legHighlight;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(CENTER_X + hipW * 0.5, hipY);
+  ctx.moveTo(centerX + hipW * 0.5, hipY);
   ctx.quadraticCurveTo(rKneeX + 2, kneeY, rFootX, footY);
   ctx.stroke();
 
@@ -1190,54 +1475,52 @@ function drawJuggler(ctx, hs) {
   ctx.ellipse(rFootX + 2, footY, 10, 5, 0.15, 0, Math.PI * 2);
   ctx.fill();
 
-  // ── Torso (filled shape with clothing) ──
+  // Torso
   ctx.beginPath();
-  ctx.moveTo(CENTER_X - shoulderW, shoulderY);
-  ctx.lineTo(CENTER_X - hipW, hipY);
-  ctx.lineTo(CENTER_X + hipW, hipY);
-  ctx.lineTo(CENTER_X + shoulderW, shoulderY);
+  ctx.moveTo(centerX - shoulderW, shoulderY);
+  ctx.lineTo(centerX - hipW, hipY);
+  ctx.lineTo(centerX + hipW, hipY);
+  ctx.lineTo(centerX + shoulderW, shoulderY);
   ctx.closePath();
-  const torsoGrad = ctx.createLinearGradient(CENTER_X, shoulderY, CENTER_X, hipY);
-  torsoGrad.addColorStop(0, '#4a4080');
-  torsoGrad.addColorStop(0.4, '#3d3570');
-  torsoGrad.addColorStop(1, '#2e2858');
+  const tc = torsoColor;
+  const torsoGrad = ctx.createLinearGradient(centerX, shoulderY, centerX, hipY);
+  torsoGrad.addColorStop(0, tc);
+  torsoGrad.addColorStop(0.4, shadeColor(tc, -15));
+  torsoGrad.addColorStop(1, shadeColor(tc, -30));
   ctx.fillStyle = torsoGrad;
   ctx.fill();
-  ctx.strokeStyle = '#5a5290';
+  ctx.strokeStyle = lightenColor(tc, 20);
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Shirt collar / neckline detail
+  // Collar
   ctx.beginPath();
-  ctx.moveTo(CENTER_X - 14, shoulderY);
-  ctx.quadraticCurveTo(CENTER_X, shoulderY - 6, CENTER_X + 14, shoulderY);
-  ctx.strokeStyle = '#6a60a8';
+  ctx.moveTo(centerX - 14, shoulderY);
+  ctx.quadraticCurveTo(centerX, shoulderY - 6, centerX + 14, shoulderY);
+  ctx.strokeStyle = lightenColor(tc, 40);
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Center line on torso (subtle)
+  // Center line
   ctx.beginPath();
-  ctx.moveTo(CENTER_X, shoulderY + 8);
-  ctx.lineTo(CENTER_X, hipY - 5);
+  ctx.moveTo(centerX, shoulderY + 8);
+  ctx.lineTo(centerX, hipY - 5);
   ctx.strokeStyle = 'rgba(100, 90, 160, 0.25)';
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // ── Arms ──
+  // Arms
   const armThick = 5.5;
-  const armColor = '#4a4080';
+  const armColor = tc;
   const armSkin = '#c8a88a';
 
-  // Left arm
-  const lElbow = { x: CENTER_X - shoulderW - 18, y: shoulderY + 48 };
-  // Upper arm (clothed)
+  const lElbow = { x: centerX - shoulderW - 18, y: shoulderY + 48 };
   ctx.strokeStyle = armColor;
   ctx.lineWidth = armThick;
   ctx.beginPath();
-  ctx.moveTo(CENTER_X - shoulderW, shoulderY + 2);
+  ctx.moveTo(centerX - shoulderW, shoulderY + 2);
   ctx.quadraticCurveTo(lElbow.x + 8, lElbow.y - 10, lElbow.x, lElbow.y);
   ctx.stroke();
-  // Forearm (skin-toned)
   ctx.strokeStyle = armSkin;
   ctx.lineWidth = armThick - 1;
   ctx.beginPath();
@@ -1245,12 +1528,11 @@ function drawJuggler(ctx, hs) {
   ctx.quadraticCurveTo(lElbow.x - 5, (lElbow.y + lhy) / 2, lhx, lhy);
   ctx.stroke();
 
-  // Right arm
-  const rElbow = { x: CENTER_X + shoulderW + 18, y: shoulderY + 48 };
+  const rElbow = { x: centerX + shoulderW + 18, y: shoulderY + 48 };
   ctx.strokeStyle = armColor;
   ctx.lineWidth = armThick;
   ctx.beginPath();
-  ctx.moveTo(CENTER_X + shoulderW, shoulderY + 2);
+  ctx.moveTo(centerX + shoulderW, shoulderY + 2);
   ctx.quadraticCurveTo(rElbow.x - 8, rElbow.y - 10, rElbow.x, rElbow.y);
   ctx.stroke();
   ctx.strokeStyle = armSkin;
@@ -1260,67 +1542,64 @@ function drawJuggler(ctx, hs) {
   ctx.quadraticCurveTo(rElbow.x + 5, (rElbow.y + rhy) / 2, rhx, rhy);
   ctx.stroke();
 
-  // ── Neck ──
+  // Neck
   ctx.strokeStyle = armSkin;
   ctx.lineWidth = 8;
   ctx.beginPath();
-  ctx.moveTo(CENTER_X, neckY - 2);
-  ctx.lineTo(CENTER_X, shoulderY + 2);
+  ctx.moveTo(centerX, neckY - 2);
+  ctx.lineTo(centerX, shoulderY + 2);
   ctx.stroke();
 
-  // ── Head ──
-  const headGrad = ctx.createRadialGradient(CENTER_X - 4, headY - 6, 2, CENTER_X, headY, headRy);
+  // Head
+  const headGrad = ctx.createRadialGradient(centerX - 4, headY - 6, 2, centerX, headY, headRy);
   headGrad.addColorStop(0, '#e8c8a8');
   headGrad.addColorStop(0.7, '#d4a87a');
   headGrad.addColorStop(1, '#b88a60');
   ctx.fillStyle = headGrad;
   ctx.beginPath();
-  ctx.ellipse(CENTER_X, headY, headRx, headRy, 0, 0, Math.PI * 2);
+  ctx.ellipse(centerX, headY, headRx, headRy, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = '#a07850';
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
   // Hair
-  ctx.fillStyle = '#2a2040';
+  const hairColor = mirrored ? '#402030' : '#2a2040';
+  ctx.fillStyle = hairColor;
   ctx.beginPath();
-  ctx.ellipse(CENTER_X, headY - 8, headRx + 2, headRy * 0.5, 0, Math.PI, Math.PI * 2);
-  ctx.fill();
-  // Side hair
-  ctx.beginPath();
-  ctx.ellipse(CENTER_X - headRx - 1, headY - 3, 3, 10, 0.1, 0, Math.PI * 2);
+  ctx.ellipse(centerX, headY - 8, headRx + 2, headRy * 0.5, 0, Math.PI, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.ellipse(CENTER_X + headRx + 1, headY - 3, 3, 10, -0.1, 0, Math.PI * 2);
+  ctx.ellipse(centerX - headRx - 1, headY - 3, 3, 10, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(centerX + headRx + 1, headY - 3, 3, 10, -0.1, 0, Math.PI * 2);
   ctx.fill();
 
-  // ── JESTER HAT ──
+  // Jester hat
   const hatBaseY = headY - headRy + 2;
-  const hatColors = ['#e74c3c', '#f1c40f', '#2ecc71'];
-  // Hat brim
-  ctx.fillStyle = '#8b5cf6';
+  const hatColors = mirrored ? ['#e67e22', '#3498db', '#e74c3c'] : ['#e74c3c', '#f1c40f', '#2ecc71'];
+  ctx.fillStyle = mirrored ? '#c0392b' : '#8b5cf6';
   ctx.beginPath();
-  ctx.ellipse(CENTER_X, hatBaseY + 2, headRx + 8, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(centerX, hatBaseY + 2, headRx + 8, 5, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = '#6d28d9';
+  ctx.strokeStyle = mirrored ? '#922b21' : '#6d28d9';
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Three jester prongs
   const prongs = [
-    { cx: CENTER_X - 20, cy: hatBaseY - 30, color: hatColors[0], angle: -0.4 },
-    { cx: CENTER_X,      cy: hatBaseY - 38, color: hatColors[1], angle: 0 },
-    { cx: CENTER_X + 20, cy: hatBaseY - 30, color: hatColors[2], angle: 0.4 },
+    { cx: centerX - 20, cy: hatBaseY - 30, color: hatColors[0], angle: -0.4 },
+    { cx: centerX,      cy: hatBaseY - 38, color: hatColors[1], angle: 0 },
+    { cx: centerX + 20, cy: hatBaseY - 30, color: hatColors[2], angle: 0.4 },
   ];
   for (const p of prongs) {
-    // Prong body
     ctx.beginPath();
-    ctx.moveTo(CENTER_X - 6 + (p.cx - CENTER_X) * 0.3, hatBaseY);
+    ctx.moveTo(centerX - 6 + (p.cx - centerX) * 0.3, hatBaseY);
     ctx.quadraticCurveTo(p.cx + Math.sin(p.angle) * 8, (hatBaseY + p.cy) / 2, p.cx, p.cy);
-    ctx.quadraticCurveTo(p.cx - Math.sin(p.angle) * 8, (hatBaseY + p.cy) / 2, CENTER_X + 6 + (p.cx - CENTER_X) * 0.3, hatBaseY);
+    ctx.quadraticCurveTo(p.cx - Math.sin(p.angle) * 8, (hatBaseY + p.cy) / 2, centerX + 6 + (p.cx - centerX) * 0.3, hatBaseY);
     ctx.closePath();
     const pGrad = ctx.createLinearGradient(p.cx, hatBaseY, p.cx, p.cy);
-    pGrad.addColorStop(0, '#8b5cf6');
+    pGrad.addColorStop(0, mirrored ? '#c0392b' : '#8b5cf6');
     pGrad.addColorStop(0.4, p.color);
     pGrad.addColorStop(1, p.color);
     ctx.fillStyle = pGrad;
@@ -1329,7 +1608,6 @@ function drawJuggler(ctx, hs) {
     ctx.lineWidth = 0.8;
     ctx.stroke();
 
-    // Bell at the tip
     ctx.fillStyle = '#fbbf24';
     ctx.beginPath();
     ctx.arc(p.cx, p.cy, 4, 0, Math.PI * 2);
@@ -1337,87 +1615,71 @@ function drawJuggler(ctx, hs) {
     ctx.strokeStyle = '#d4a00a';
     ctx.lineWidth = 1;
     ctx.stroke();
-    // Bell shine
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.beginPath();
     ctx.arc(p.cx - 1, p.cy - 1.5, 1.5, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Eyes
+  // Eyes — in passing mode, jugglers look toward each other
+  const eyeOffsetX = mirrored ? -2 : 2;
+  const pupilOffsetX = mirrored ? -1.5 : 1.5;
+
   ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.ellipse(CENTER_X - 6, headY - 2, 3.5, 2.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(centerX - 6, headY - 2, 3.5, 2.5, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.ellipse(CENTER_X + 6, headY - 2, 3.5, 2.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // Pupils (looking up at the balls)
-  ctx.fillStyle = '#1a1030';
-  ctx.beginPath();
-  ctx.arc(CENTER_X - 6, headY - 3, 1.8, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(CENTER_X + 6, headY - 3, 1.8, 0, Math.PI * 2);
-  ctx.fill();
-  // Eye shine
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.beginPath();
-  ctx.arc(CENTER_X - 5, headY - 3.5, 0.7, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(CENTER_X + 7, headY - 3.5, 0.7, 0, Math.PI * 2);
+  ctx.ellipse(centerX + 6, headY - 2, 3.5, 2.5, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Subtle smile
+  ctx.fillStyle = '#1a1030';
+  ctx.beginPath();
+  ctx.arc(centerX - 6 + (sim.passing ? pupilOffsetX : 0), headY - 3, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(centerX + 6 + (sim.passing ? pupilOffsetX : 0), headY - 3, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath();
+  ctx.arc(centerX - 5, headY - 3.5, 0.7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(centerX + 7, headY - 3.5, 0.7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Smile
   ctx.strokeStyle = '#9a7050';
   ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.arc(CENTER_X, headY + 3, 5, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.arc(centerX, headY + 3, 5, 0.15 * Math.PI, 0.85 * Math.PI);
   ctx.stroke();
 
-  // ── Hands (skin-toned with glow) ──
-  // Left hand glow
-  const lhGlow = ctx.createRadialGradient(lhx, lhy, 0, lhx, lhy, 18);
-  lhGlow.addColorStop(0, 'rgba(168, 158, 255, 0.25)');
-  lhGlow.addColorStop(1, 'rgba(168, 158, 255, 0)');
-  ctx.fillStyle = lhGlow;
-  ctx.beginPath();
-  ctx.arc(lhx, lhy, 18, 0, Math.PI * 2);
-  ctx.fill();
+  // Hands
+  const drawHand = (hx, hy, tiltDir) => {
+    const hGlow = ctx.createRadialGradient(hx, hy, 0, hx, hy, 18);
+    hGlow.addColorStop(0, 'rgba(168, 158, 255, 0.25)');
+    hGlow.addColorStop(1, 'rgba(168, 158, 255, 0)');
+    ctx.fillStyle = hGlow;
+    ctx.beginPath();
+    ctx.arc(hx, hy, 18, 0, Math.PI * 2);
+    ctx.fill();
 
-  // Left hand
-  const handGrad1 = ctx.createRadialGradient(lhx - 1, lhy - 1, 0, lhx, lhy, 9);
-  handGrad1.addColorStop(0, '#e8c8a8');
-  handGrad1.addColorStop(1, '#c8a080');
-  ctx.fillStyle = handGrad1;
-  ctx.beginPath();
-  ctx.ellipse(lhx, lhy, 8, 6, 0.3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#a58060';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+    const hGrad = ctx.createRadialGradient(hx + tiltDir, hy - 1, 0, hx, hy, 9);
+    hGrad.addColorStop(0, '#e8c8a8');
+    hGrad.addColorStop(1, '#c8a080');
+    ctx.fillStyle = hGrad;
+    ctx.beginPath();
+    ctx.ellipse(hx, hy, 8, 6, tiltDir * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#a58060';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  };
 
-  // Right hand glow
-  const rhGlow = ctx.createRadialGradient(rhx, rhy, 0, rhx, rhy, 18);
-  rhGlow.addColorStop(0, 'rgba(168, 158, 255, 0.25)');
-  rhGlow.addColorStop(1, 'rgba(168, 158, 255, 0)');
-  ctx.fillStyle = rhGlow;
-  ctx.beginPath();
-  ctx.arc(rhx, rhy, 18, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Right hand
-  const handGrad2 = ctx.createRadialGradient(rhx + 1, rhy - 1, 0, rhx, rhy, 9);
-  handGrad2.addColorStop(0, '#e8c8a8');
-  handGrad2.addColorStop(1, '#c8a080');
-  ctx.fillStyle = handGrad2;
-  ctx.beginPath();
-  ctx.ellipse(rhx, rhy, 8, 6, -0.3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#a58060';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  drawHand(lhx, lhy, -1);
+  drawHand(rhx, rhy, 1);
 
   ctx.restore();
 }
@@ -1434,14 +1696,11 @@ function drawClub(ctx, ball) {
   ctx.save();
   ctx.translate(ball.x, ball.y);
 
-  // Rotation: clubs spin during flight
-  let angle = Math.PI / 2; // default upright in hand
+  let angle = Math.PI / 2;
   if (ball.airFrac > 0 && ball.airFrac <= 1) {
     const rotations = getClubRotations(ball.throwValue);
-    // Full rotations during flight
     angle = ball.airFrac * rotations * Math.PI * 2;
   } else if (ball.airFrac === -1) {
-    // Dwell — held upright, slight tilt
     angle = -Math.PI * 0.1;
   }
 
@@ -1451,16 +1710,13 @@ function drawClub(ctx, ball) {
   const handleLen = 14;
   const bodyTopW = 4;
   const bodyBotW = 10;
-  const knobR = 5;
   const handleW = 3;
 
-  // Glow behind club
   ctx.fillStyle = hexAlpha(ball.color, 0x25);
   ctx.beginPath();
   ctx.ellipse(0, -clubLen * 0.3, 12, clubLen * 0.6, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Handle (bottom part)
   ctx.strokeStyle = '#d4c8a0';
   ctx.lineWidth = handleW;
   ctx.lineCap = 'round';
@@ -1469,13 +1725,11 @@ function drawClub(ctx, ball) {
   ctx.lineTo(0, 2);
   ctx.stroke();
 
-  // Handle knob at the very bottom
   ctx.fillStyle = '#e8d8b0';
   ctx.beginPath();
   ctx.arc(0, handleLen + 2, 3, 0, Math.PI * 2);
   ctx.fill();
 
-  // Club body (tapered shape)
   ctx.beginPath();
   ctx.moveTo(-bodyTopW / 2, 0);
   ctx.quadraticCurveTo(-bodyBotW / 2 - 1, -clubLen * 0.4, -bodyBotW / 2, -clubLen * 0.6);
@@ -1484,7 +1738,6 @@ function drawClub(ctx, ball) {
   ctx.quadraticCurveTo(bodyBotW / 2 + 1, -clubLen * 0.4, bodyTopW / 2, 0);
   ctx.closePath();
 
-  // Gradient fill on the body
   const bodyGrad = ctx.createLinearGradient(-bodyBotW, 0, bodyBotW, -clubLen);
   bodyGrad.addColorStop(0, ball.color);
   bodyGrad.addColorStop(0.5, lightenColor(ball.color, 25));
@@ -1495,7 +1748,6 @@ function drawClub(ctx, ball) {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Stripe decoration on body
   ctx.strokeStyle = 'rgba(255,255,255,0.251)';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
@@ -1507,7 +1759,6 @@ function drawClub(ctx, ball) {
   ctx.lineTo(bodyBotW / 2 - 3, -clubLen * 0.55);
   ctx.stroke();
 
-  // Tip highlight
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.beginPath();
   ctx.ellipse(-1, -clubLen * 0.7, 2, 5, 0, 0, Math.PI * 2);
@@ -1561,14 +1812,28 @@ spinBtns.forEach(btn => {
   });
 });
 
-// Show/hide spin selector based on prop type
 propBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     spinGroup.style.display = btn.dataset.prop === 'clubs' ? '' : 'none';
   });
 });
 
-let currentSiteswapStr = ''; // track what's currently running
+// Mode toggle (solo / passing)
+const modeBtns = document.querySelectorAll('.mode-btn');
+modeBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    modeBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const newMode = btn.dataset.mode;
+    if (newMode !== currentMode) {
+      currentMode = newMode;
+      fullStop();
+      updatePresets();
+    }
+  });
+});
+
+let currentSiteswapStr = '';
 
 function toggleJuggling() {
   initAudio();
@@ -1576,7 +1841,6 @@ function toggleJuggling() {
   const newSiteswap = siteswapInput.value.trim().toLowerCase();
   const siteswapChanged = newSiteswap !== currentSiteswapStr;
 
-  // If currently running (not paused) and siteswap hasn't changed — pause
   if (sim && sim.running && !isPaused && !siteswapChanged) {
     isPaused = true;
     pauseTimestamp = performance.now();
@@ -1588,7 +1852,6 @@ function toggleJuggling() {
     return;
   }
 
-  // If paused and siteswap hasn't changed — resume
   if (isPaused && sim && !siteswapChanged) {
     isPaused = false;
     const resumeTimestamp = performance.now();
@@ -1601,7 +1864,6 @@ function toggleJuggling() {
     return;
   }
 
-  // Fresh start (new siteswap or first time)
   fullStop();
 
   const vals = parseSiteswap(siteswapInput.value);
@@ -1610,7 +1872,13 @@ function toggleJuggling() {
     return;
   }
 
-  const validation = validateSiteswap(vals);
+  let validation;
+  if (currentMode === 'passing') {
+    validation = validatePassingSiteswap(vals);
+  } else {
+    validation = validateSiteswap(vals);
+  }
+
   if (!validation.ok) {
     errorMsg.textContent = validation.msg;
     return;
@@ -1620,7 +1888,12 @@ function toggleJuggling() {
   const bpm = parseInt(speedInput.value) || 280;
   const dwell = parseFloat(dwellInput.value) || 0.5;
 
-  sim = createSimulator(vals, bpm, dwell);
+  if (currentMode === 'passing') {
+    sim = createPassingSimulator(vals, bpm, dwell);
+  } else {
+    sim = createSimulator(vals, bpm, dwell);
+  }
+
   currentSiteswapStr = newSiteswap;
   soundedThrows.clear();
   soundedCatches.clear();
@@ -1629,7 +1902,7 @@ function toggleJuggling() {
   pauseTimestamp = null;
   totalPausedDuration = 0;
 
-  document.getElementById('infoNumBalls').textContent = validation.numBalls;
+  document.getElementById('infoNumBalls').textContent = validation.numBalls + (currentMode === 'passing' ? ' (shared)' : '');
   document.getElementById('infoPeriod').textContent = validation.period;
   document.getElementById('infoAvg').textContent = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
   document.getElementById('infoPattern').textContent = vals.map(v => v.toString(36)).join('');
@@ -1657,7 +1930,6 @@ function fullStop() {
   toggleBtn.classList.remove('btn-stop');
   toggleBtn.classList.add('btn-primary');
 
-  // Draw placeholder
   const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
   bgGrad.addColorStop(0, '#0a0a18');
   bgGrad.addColorStop(0.5, '#0e0e1e');
@@ -1669,16 +1941,22 @@ function fullStop() {
   ctx.font = '500 14px "Inter", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('Enter a siteswap and press ▶ Juggle', W / 2, H / 2 - 10);
-  ctx.fillStyle = '#33315a';
-  ctx.font = '400 11px "Inter", sans-serif';
-  ctx.fillText('Powered by real parabolic physics', W / 2, H / 2 + 10);
+  if (currentMode === 'passing') {
+    ctx.fillText('Enter a 4-handed siteswap and press ▶ Juggle', W / 2, H / 2 - 10);
+    ctx.fillStyle = '#33315a';
+    ctx.font = '400 11px "Inter", sans-serif';
+    ctx.fillText('Odd throws pass between jugglers · Even throws are self throws', W / 2, H / 2 + 10);
+  } else {
+    ctx.fillText('Enter a siteswap and press ▶ Juggle', W / 2, H / 2 - 10);
+    ctx.fillStyle = '#33315a';
+    ctx.font = '400 11px "Inter", sans-serif';
+    ctx.fillText('Powered by real parabolic physics', W / 2, H / 2 + 10);
+  }
 }
 
 toggleBtn.addEventListener('click', toggleJuggling);
 siteswapInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') toggleJuggling(); });
-// ─── LIVE PARAMETER UPDATES ──────────────────────────────────────
-// Update tempo and dwell in real-time without restarting the simulation
+
 speedInput.addEventListener('input', () => {
   if (!sim || !sim.running) return;
   const bpm = parseInt(speedInput.value) || 280;
@@ -1697,7 +1975,7 @@ dwellInput.addEventListener('input', () => {
 
 // ─── PRESETS ───────────────────────────────────────────────────────
 
-const PRESETS = [
+const SOLO_PRESETS = [
   { name: 'Cascade', ss: '3' },
   { name: 'Fountain', ss: '4' },
   { name: '5-Cascade', ss: '5' },
@@ -1705,18 +1983,16 @@ const PRESETS = [
   { name: 'Shower (4b)', ss: '71' },
   { name: 'Half-Shower', ss: '53' },
   { name: 'Flash', ss: '531' },
-  { name: 'Mill\'s Mess base', ss: '3' },
+  { name: "Mill's Mess base", ss: '3' },
   { name: '441', ss: '441' },
   { name: '423', ss: '423' },
   { name: '534', ss: '534' },
   { name: '633', ss: '633' },
   { name: '744', ss: '744' },
-  { name: 'Box', ss: '(4,2x)(2x,4)' },
   { name: '7531', ss: '7531' },
   { name: '97531', ss: '97531' },
   { name: 'High-low', ss: '91' },
   { name: 'Snake', ss: '51414' },
-  { name: 'Columns', ss: '(4,4)(4,0)(0,4)' },
   { name: '5551', ss: '5551' },
   { name: '55550', ss: '55550' },
   { name: '6', ss: '6' },
@@ -1724,21 +2000,44 @@ const PRESETS = [
   { name: 'b97531', ss: 'b97531' },
 ];
 
+const PASSING_PRESETS = [
+  { name: '4-ct (6 clubs)', ss: '7', desc: 'Classic every-others pass' },
+  { name: '3-ct (6 clubs)', ss: '786', desc: 'Pass-self-self' },
+  { name: '2-ct (6 clubs)', ss: '77', desc: 'Every beat is a pass' },
+  { name: 'Shower pass', ss: '91', desc: '9-ball shower passing' },
+  { name: '5-ct (6 clubs)', ss: '78686', desc: 'Pass-self-self-self-self' },
+  { name: 'Pass-pass-self (7)', ss: '996', desc: '7 objects fast' },
+  { name: 'Jim\'s 3-ct (7)', ss: '978', desc: '7 objects, 3-count' },
+  { name: '1-ct (6 clubs)', ss: '7', desc: 'Thunder shower' },
+  { name: 'Why Not (7)', ss: '97', desc: 'Fast 7-object passing' },
+  { name: 'Martin\'s (6)', ss: '7868', desc: '6 objects, 4-period' },
+  { name: 'Mild Madness (6)', ss: '786', desc: '6 objects, 3-count' },
+  { name: 'Hefty (7)', ss: '966', desc: '7 objects, fun timing' },
+  { name: 'Parsnip (7)', ss: '9968926', desc: 'Complex 7-object' },
+  { name: '5-ball pass', ss: '5', desc: '5 objects, every-others' },
+  { name: 'French 3-ct (6)', ss: '756', desc: '6 objects, French-style' },
+];
+
 const presetsDiv = document.getElementById('presets');
 
-PRESETS.filter(p => !p.ss.includes('(')).forEach(p => {
-  const chip = document.createElement('button');
-  chip.className = 'preset-chip';
-  chip.innerHTML = `<span class="num">${p.ss}</span>${p.name}`;
-  chip.addEventListener('click', () => {
-    siteswapInput.value = p.ss;
-    fullStop();
-    toggleJuggling();
+function updatePresets() {
+  presetsDiv.innerHTML = '';
+  const presets = currentMode === 'passing' ? PASSING_PRESETS : SOLO_PRESETS;
+  presets.forEach(p => {
+    const chip = document.createElement('button');
+    chip.className = 'preset-chip';
+    chip.innerHTML = `<span class="num">${p.ss}</span>${p.name}`;
+    if (p.desc) chip.title = p.desc;
+    chip.addEventListener('click', () => {
+      siteswapInput.value = p.ss;
+      fullStop();
+      toggleJuggling();
+    });
+    presetsDiv.appendChild(chip);
   });
-  presetsDiv.appendChild(chip);
-});
+}
 
-// Start with placeholder
+updatePresets();
 fullStop();
 </script>
 
