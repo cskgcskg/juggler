@@ -477,6 +477,72 @@
     color: var(--accent-bright);
     font-weight: 600;
   }
+
+  /* ─── Equations Panel ─── */
+  .equations-panel {
+    width: 100%;
+  }
+  .equations-panel h3 {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .equations-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  .eq-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    min-width: 200px;
+    transition: border-color 0.3s, opacity 0.3s;
+  }
+  .eq-card.in-flight {
+    border-color: rgba(255,255,255,0.12);
+  }
+  .eq-card.held {
+    opacity: 0.35;
+  }
+  .eq-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px currentColor;
+  }
+  .eq-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.3;
+  }
+  .eq-formula {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .eq-values {
+    font-size: 0.65rem;
+    font-weight: 400;
+    color: var(--text-dim);
+  }
+  @media (max-width: 768px) {
+    .eq-card { min-width: 160px; padding: 5px 8px; }
+    .eq-formula { font-size: 0.65rem; }
+    .eq-values { font-size: 0.6rem; }
+  }
 </style>
 </head>
 <body>
@@ -536,7 +602,8 @@
         </div>
       </div>
       <div class="control-group" style="flex-direction:row; gap:8px; align-items:flex-end;">
-        <button class="btn btn-primary" id="toggleBtn" style="min-width:110px; text-align:center;">▶ Juggle</button>
+        <button class="btn btn-primary" id="juggleBtn" style="min-width:100px; text-align:center;">▶ Juggle</button>
+        <button class="btn btn-stop" id="pauseBtn" style="min-width:90px; text-align:center; display:none;">⏸ Pause</button>
         <button class="btn btn-sound active" id="soundBtn" title="Toggle sound">🔊</button>
       </div>
     </div>
@@ -554,6 +621,11 @@
     <span><span class="label">Period</span><span class="val" id="infoPeriod">—</span></span>
     <span><span class="label">Average</span><span class="val" id="infoAvg">—</span></span>
     <span><span class="label">Pattern</span><span class="val" id="infoPattern">—</span></span>
+  </div>
+
+  <div class="glass-card equations-panel" id="equationsPanel" style="display:none;">
+    <h3>Live Parabolic Equations</h3>
+    <div class="equations-grid" id="equationsGrid"></div>
   </div>
 
   <div class="glass-card legend">
@@ -1028,6 +1100,7 @@ function getBallStates(sim, now) {
     let bx, by;
     let phase = 'caught';
     let frac = 0;
+    let eqData = null;
 
     if (v === 2) {
       bx = fromX;
@@ -1109,6 +1182,9 @@ function getBallStates(sim, now) {
       const peakH = peakHeight(airtime) * METER_TO_PX * heightScale;
       by = HAND_Y - 4 * peakH * frac * (1 - frac);
 
+      // Capture equation data for real-time display
+      eqData = { throwX, catchX, peakH, airtime, frac, t: elapsed - throwMoment };
+
       // Sound
       const throwKey = `${foundBeat}_${ballId}`;
       if (frac < 0.15 && !soundedThrows.has(throwKey)) {
@@ -1144,7 +1220,8 @@ function getBallStates(sim, now) {
       id: ballId,
       airFrac: phase === 'air' ? frac : (phase === 'dwell' ? -1 : 0),
       throwValue: v,
-      isPass: info.isPass || false
+      isPass: info.isPass || false,
+      eqData
     });
   }
 
@@ -1236,10 +1313,10 @@ function drawFrame(timestamp) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    drawJugglerAt(ctx, handStates.A, PASS_JUGGLER_A_X, false, '#4a4080');
-    drawJugglerAt(ctx, handStates.B, PASS_JUGGLER_B_X, true, '#804a60');
+    drawJugglerAt(ctx, handStates.A, PASS_JUGGLER_A_X, 'boy', '#4a4080');
+    drawJugglerAt(ctx, handStates.B, PASS_JUGGLER_B_X, 'girl', '#804a60');
   } else {
-    drawJugglerAt(ctx, handStates, SOLO_CENTER_X, false, '#4a4080');
+    drawJugglerAt(ctx, handStates, SOLO_CENTER_X, 'boy', '#4a4080');
   }
 
   // Particles
@@ -1377,7 +1454,7 @@ function drawFrame(timestamp) {
 
   // Passing mode: label jugglers
   if (sim.passing) {
-    ctx.font = '600 12px "JetBrains Mono", monospace';
+    ctx.font = '600 11px "Inter", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#6070cc';
@@ -1386,14 +1463,97 @@ function drawFrame(timestamp) {
     ctx.fillText('B', PASS_JUGGLER_B_X, H - 45);
   }
 
+  // ── Update equations dashboard ──
+  updateEquationsPanel(balls);
+
   animId = requestAnimationFrame(drawFrame);
 }
 
-// ─── JUGGLER DRAWING (parametric) ──────────────────────────────────
-// Draws a juggler centered at centerX. If `mirrored`, the juggler faces left.
-// `torsoColor` lets us differentiate the two jugglers in passing mode.
+// ─── EQUATIONS PANEL (DOM-based) ───────────────────────────────────
 
-function drawJugglerAt(ctx, hs, centerX, mirrored, torsoColor) {
+const equationsPanel = document.getElementById('equationsPanel');
+const equationsGrid = document.getElementById('equationsGrid');
+let eqCards = {}; // keyed by ball id
+
+function ensureEqCards(numBalls) {
+  // Create/remove cards to match ball count
+  const existing = Object.keys(eqCards).length;
+  if (existing === numBalls) return;
+
+  equationsGrid.innerHTML = '';
+  eqCards = {};
+  for (let i = 0; i < numBalls; i++) {
+    const color = BALL_COLORS[i % BALL_COLORS.length];
+    const card = document.createElement('div');
+    card.className = 'eq-card held';
+    card.innerHTML = `
+      <div class="eq-dot" style="background:${color}; color:${color};"></div>
+      <div class="eq-text">
+        <span class="eq-formula" id="eqF${i}">y = —</span>
+        <span class="eq-values" id="eqV${i}">waiting…</span>
+      </div>
+    `;
+    equationsGrid.appendChild(card);
+    eqCards[i] = card;
+  }
+}
+
+function updateEquationsPanel(balls) {
+  if (!sim) return;
+  equationsPanel.style.display = '';
+  ensureEqCards(sim.numBalls);
+
+  // Reset all to held
+  for (const id in eqCards) {
+    eqCards[id].className = 'eq-card held';
+  }
+
+  for (const ball of balls) {
+    const card = eqCards[ball.id];
+    if (!card) continue;
+
+    const fEl = document.getElementById('eqF' + ball.id);
+    const vEl = document.getElementById('eqV' + ball.id);
+
+    if (ball.eqData && ball.airFrac > 0) {
+      const eq = ball.eqData;
+      const T = eq.airtime;
+      const t = eq.t;
+      const peakM = eq.peakH / METER_TO_PX;
+      const v0y = T > 0 ? 2 * peakM / (T / 2) : 0;
+      const yM = v0y * t - 0.5 * GRAVITY * t * t;
+      const vxM = Math.abs((eq.catchX - eq.throwX) / T / METER_TO_PX);
+
+      card.className = 'eq-card in-flight';
+      card.style.borderColor = ball.color + '40';
+      fEl.textContent = `y = ${v0y.toFixed(1)}t \u2212 4.9t\u00B2`;
+      fEl.style.color = ball.color;
+      vEl.textContent = `t=${t.toFixed(2)}s  h=${yM.toFixed(2)}m  v\u2093=${vxM.toFixed(1)}m/s`;
+    } else if (ball.throwValue === 2) {
+      card.className = 'eq-card held';
+      fEl.textContent = 'hold';
+      fEl.style.color = '';
+      vEl.textContent = 'in hand';
+    } else if (ball.airFrac === -1) {
+      card.className = 'eq-card';
+      fEl.textContent = `throw ${ball.throwValue}`;
+      fEl.style.color = '';
+      vEl.textContent = 'dwell (scoop)';
+    } else {
+      card.className = 'eq-card held';
+      fEl.textContent = 'y = —';
+      fEl.style.color = '';
+      vEl.textContent = 'caught';
+    }
+  }
+}
+
+// ─── JUGGLER DRAWING ───────────────────────────────────────────────
+// Draws a juggler. `gender`: 'boy' or 'girl' controls appearance.
+// `torsoColor` differentiates the two jugglers in passing mode.
+
+function drawJugglerAt(ctx, hs, centerX, gender, torsoColor) {
+  const isGirl = gender === 'girl';
   ctx.save();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -1563,67 +1723,139 @@ function drawJugglerAt(ctx, hs, centerX, mirrored, torsoColor) {
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Hair
-  const hairColor = mirrored ? '#402030' : '#2a2040';
-  ctx.fillStyle = hairColor;
-  ctx.beginPath();
-  ctx.ellipse(centerX, headY - 8, headRx + 2, headRy * 0.5, 0, Math.PI, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(centerX - headRx - 1, headY - 3, 3, 10, 0.1, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(centerX + headRx + 1, headY - 3, 3, 10, -0.1, 0, Math.PI * 2);
-  ctx.fill();
+  // Hair & headwear — different for boy vs girl
+  if (isGirl) {
+    // ── Girl: longer flowing hair with ponytail ──
+    const hairColor = '#402030';
+    const hairHighlight = '#5a3048';
 
-  // Jester hat
-  const hatBaseY = headY - headRy + 2;
-  const hatColors = mirrored ? ['#e67e22', '#3498db', '#e74c3c'] : ['#e74c3c', '#f1c40f', '#2ecc71'];
-  ctx.fillStyle = mirrored ? '#c0392b' : '#8b5cf6';
-  ctx.beginPath();
-  ctx.ellipse(centerX, hatBaseY + 2, headRx + 8, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = mirrored ? '#922b21' : '#6d28d9';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  const prongs = [
-    { cx: centerX - 20, cy: hatBaseY - 30, color: hatColors[0], angle: -0.4 },
-    { cx: centerX,      cy: hatBaseY - 38, color: hatColors[1], angle: 0 },
-    { cx: centerX + 20, cy: hatBaseY - 30, color: hatColors[2], angle: 0.4 },
-  ];
-  for (const p of prongs) {
+    // Main hair mass (longer, covers more of head)
+    ctx.fillStyle = hairColor;
     ctx.beginPath();
-    ctx.moveTo(centerX - 6 + (p.cx - centerX) * 0.3, hatBaseY);
-    ctx.quadraticCurveTo(p.cx + Math.sin(p.angle) * 8, (hatBaseY + p.cy) / 2, p.cx, p.cy);
-    ctx.quadraticCurveTo(p.cx - Math.sin(p.angle) * 8, (hatBaseY + p.cy) / 2, centerX + 6 + (p.cx - centerX) * 0.3, hatBaseY);
-    ctx.closePath();
-    const pGrad = ctx.createLinearGradient(p.cx, hatBaseY, p.cx, p.cy);
-    pGrad.addColorStop(0, mirrored ? '#c0392b' : '#8b5cf6');
-    pGrad.addColorStop(0.4, p.color);
-    pGrad.addColorStop(1, p.color);
-    ctx.fillStyle = pGrad;
+    ctx.ellipse(centerX, headY - 6, headRx + 3, headRy * 0.6, 0, Math.PI, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = shadeColor(p.color, -30);
+
+    // Side hair flowing down (longer than boy)
+    ctx.beginPath();
+    ctx.ellipse(centerX - headRx - 2, headY + 2, 4, 16, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(centerX + headRx + 2, headY + 2, 4, 16, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ponytail (flowing to one side)
+    ctx.beginPath();
+    ctx.moveTo(centerX + headRx - 2, headY - headRy + 6);
+    ctx.quadraticCurveTo(centerX + headRx + 18, headY - 20, centerX + headRx + 22, headY - 5);
+    ctx.quadraticCurveTo(centerX + headRx + 24, headY + 8, centerX + headRx + 16, headY + 15);
+    ctx.quadraticCurveTo(centerX + headRx + 10, headY + 5, centerX + headRx + 2, headY - 2);
+    ctx.closePath();
+    ctx.fillStyle = hairColor;
+    ctx.fill();
+
+    // Hair highlight streak
+    ctx.strokeStyle = hairHighlight;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(centerX - 4, headY - headRy + 5);
+    ctx.quadraticCurveTo(centerX + 6, headY - headRy + 2, centerX + headRx - 2, headY - headRy + 8);
+    ctx.stroke();
+
+    // Hair tie (scrunchie)
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.ellipse(centerX + headRx + 2, headY - headRy + 8, 4, 3, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#c0392b';
     ctx.lineWidth = 0.8;
     ctx.stroke();
 
-    ctx.fillStyle = '#fbbf24';
+    // ── Bow on top ──
+    const bowX = centerX - 6, bowY = headY - headRy - 2;
+    const bowColor = '#f472b6';
+    // Left loop
     ctx.beginPath();
-    ctx.arc(p.cx, p.cy, 4, 0, Math.PI * 2);
+    ctx.moveTo(bowX, bowY);
+    ctx.quadraticCurveTo(bowX - 12, bowY - 8, bowX - 10, bowY + 2);
+    ctx.quadraticCurveTo(bowX - 6, bowY + 5, bowX, bowY);
+    ctx.closePath();
+    ctx.fillStyle = bowColor;
     ctx.fill();
-    ctx.strokeStyle = '#d4a00a';
+    // Right loop
+    ctx.beginPath();
+    ctx.moveTo(bowX, bowY);
+    ctx.quadraticCurveTo(bowX + 12, bowY - 8, bowX + 10, bowY + 2);
+    ctx.quadraticCurveTo(bowX + 6, bowY + 5, bowX, bowY);
+    ctx.closePath();
+    ctx.fill();
+    // Center knot
+    ctx.fillStyle = '#ec4899';
+    ctx.beginPath();
+    ctx.arc(bowX, bowY + 1, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+  } else {
+    // ── Boy: short hair + jester hat (original) ──
+    const hairColor = '#2a2040';
+    ctx.fillStyle = hairColor;
+    ctx.beginPath();
+    ctx.ellipse(centerX, headY - 8, headRx + 2, headRy * 0.5, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(centerX - headRx - 1, headY - 3, 3, 10, 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(centerX + headRx + 1, headY - 3, 3, 10, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Jester hat
+    const hatBaseY = headY - headRy + 2;
+    const hatColors = ['#e74c3c', '#f1c40f', '#2ecc71'];
+    ctx.fillStyle = '#8b5cf6';
+    ctx.beginPath();
+    ctx.ellipse(centerX, hatBaseY + 2, headRx + 8, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#6d28d9';
     ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.beginPath();
-    ctx.arc(p.cx - 1, p.cy - 1.5, 1.5, 0, Math.PI * 2);
-    ctx.fill();
+
+    const prongs = [
+      { cx: centerX - 20, cy: hatBaseY - 30, color: hatColors[0], angle: -0.4 },
+      { cx: centerX,      cy: hatBaseY - 38, color: hatColors[1], angle: 0 },
+      { cx: centerX + 20, cy: hatBaseY - 30, color: hatColors[2], angle: 0.4 },
+    ];
+    for (const p of prongs) {
+      ctx.beginPath();
+      ctx.moveTo(centerX - 6 + (p.cx - centerX) * 0.3, hatBaseY);
+      ctx.quadraticCurveTo(p.cx + Math.sin(p.angle) * 8, (hatBaseY + p.cy) / 2, p.cx, p.cy);
+      ctx.quadraticCurveTo(p.cx - Math.sin(p.angle) * 8, (hatBaseY + p.cy) / 2, centerX + 6 + (p.cx - centerX) * 0.3, hatBaseY);
+      ctx.closePath();
+      const pGrad = ctx.createLinearGradient(p.cx, hatBaseY, p.cx, p.cy);
+      pGrad.addColorStop(0, '#8b5cf6');
+      pGrad.addColorStop(0.4, p.color);
+      pGrad.addColorStop(1, p.color);
+      ctx.fillStyle = pGrad;
+      ctx.fill();
+      ctx.strokeStyle = shadeColor(p.color, -30);
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.arc(p.cx, p.cy, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#d4a00a';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath();
+      ctx.arc(p.cx - 1, p.cy - 1.5, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
-  // Eyes — in passing mode, jugglers look toward each other
-  const eyeOffsetX = mirrored ? -2 : 2;
-  const pupilOffsetX = mirrored ? -1.5 : 1.5;
+  // Eyes
+  const pupilOffsetX = isGirl ? -1.5 : 1.5;
 
   ctx.fillStyle = '#fff';
   ctx.beginPath();
@@ -1633,7 +1865,8 @@ function drawJugglerAt(ctx, hs, centerX, mirrored, torsoColor) {
   ctx.ellipse(centerX + 6, headY - 2, 3.5, 2.5, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = '#1a1030';
+  // Pupils
+  ctx.fillStyle = isGirl ? '#1a1028' : '#1a1030';
   ctx.beginPath();
   ctx.arc(centerX - 6 + (sim.passing ? pupilOffsetX : 0), headY - 3, 1.8, 0, Math.PI * 2);
   ctx.fill();
@@ -1641,6 +1874,7 @@ function drawJugglerAt(ctx, hs, centerX, mirrored, torsoColor) {
   ctx.arc(centerX + 6 + (sim.passing ? pupilOffsetX : 0), headY - 3, 1.8, 0, Math.PI * 2);
   ctx.fill();
 
+  // Eye shine
   ctx.fillStyle = 'rgba(255,255,255,0.7)';
   ctx.beginPath();
   ctx.arc(centerX - 5, headY - 3.5, 0.7, 0, Math.PI * 2);
@@ -1649,12 +1883,68 @@ function drawJugglerAt(ctx, hs, centerX, mirrored, torsoColor) {
   ctx.arc(centerX + 7, headY - 3.5, 0.7, 0, Math.PI * 2);
   ctx.fill();
 
-  // Smile
-  ctx.strokeStyle = '#9a7050';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.arc(centerX, headY + 3, 5, 0.15 * Math.PI, 0.85 * Math.PI);
-  ctx.stroke();
+  // Girl: eyelashes
+  if (isGirl) {
+    ctx.strokeStyle = '#2a1830';
+    ctx.lineWidth = 1;
+    // Left eye lashes
+    ctx.beginPath();
+    ctx.moveTo(centerX - 9, headY - 4);
+    ctx.lineTo(centerX - 10.5, headY - 6.5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX - 7, headY - 4.5);
+    ctx.lineTo(centerX - 7.5, headY - 7);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX - 4, headY - 4);
+    ctx.lineTo(centerX - 3.5, headY - 6.5);
+    ctx.stroke();
+    // Right eye lashes
+    ctx.beginPath();
+    ctx.moveTo(centerX + 3, headY - 4);
+    ctx.lineTo(centerX + 2.5, headY - 6.5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX + 5.5, headY - 4.5);
+    ctx.lineTo(centerX + 5.5, headY - 7);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX + 8, headY - 4);
+    ctx.lineTo(centerX + 9.5, headY - 6.5);
+    ctx.stroke();
+  }
+
+  // Smile — girl has rosier lips
+  if (isGirl) {
+    ctx.strokeStyle = '#c06060';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(centerX, headY + 3, 4.5, 0.15 * Math.PI, 0.85 * Math.PI);
+    ctx.stroke();
+    // Small lip highlight
+    ctx.fillStyle = 'rgba(220, 120, 130, 0.4)';
+    ctx.beginPath();
+    ctx.ellipse(centerX, headY + 5.5, 3.5, 1.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = '#9a7050';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(centerX, headY + 3, 5, 0.15 * Math.PI, 0.85 * Math.PI);
+    ctx.stroke();
+  }
+
+  // Girl: subtle blush
+  if (isGirl) {
+    ctx.fillStyle = 'rgba(240, 140, 160, 0.12)';
+    ctx.beginPath();
+    ctx.ellipse(centerX - 10, headY + 1, 5, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(centerX + 10, headY + 1, 5, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Hands
   const drawHand = (hx, hy, tiltDir) => {
@@ -1787,7 +2077,8 @@ function lightenColor(color, percent) {
 const siteswapInput = document.getElementById('siteswapInput');
 const speedInput = document.getElementById('speedInput');
 const dwellInput = document.getElementById('dwellInput');
-const toggleBtn = document.getElementById('toggleBtn');
+const juggleBtn = document.getElementById('juggleBtn');
+const pauseBtn = document.getElementById('pauseBtn');
 const errorMsg = document.getElementById('errorMsg');
 
 // Prop toggle
@@ -1835,35 +2126,9 @@ modeBtns.forEach(btn => {
 
 let currentSiteswapStr = '';
 
-function toggleJuggling() {
+// ─── JUGGLE BUTTON: always starts (or restarts) the pattern ────────
+function startJuggling() {
   initAudio();
-
-  const newSiteswap = siteswapInput.value.trim().toLowerCase();
-  const siteswapChanged = newSiteswap !== currentSiteswapStr;
-
-  if (sim && sim.running && !isPaused && !siteswapChanged) {
-    isPaused = true;
-    pauseTimestamp = performance.now();
-    if (animId) cancelAnimationFrame(animId);
-    animId = null;
-    toggleBtn.textContent = '▶ Resume';
-    toggleBtn.classList.remove('btn-stop');
-    toggleBtn.classList.add('btn-primary');
-    return;
-  }
-
-  if (isPaused && sim && !siteswapChanged) {
-    isPaused = false;
-    const resumeTimestamp = performance.now();
-    totalPausedDuration += (resumeTimestamp - pauseTimestamp);
-    pauseTimestamp = null;
-    toggleBtn.textContent = '⏸ Pause';
-    toggleBtn.classList.remove('btn-primary');
-    toggleBtn.classList.add('btn-stop');
-    animId = requestAnimationFrame(drawFrame);
-    return;
-  }
-
   fullStop();
 
   const vals = parseSiteswap(siteswapInput.value);
@@ -1894,7 +2159,7 @@ function toggleJuggling() {
     sim = createSimulator(vals, bpm, dwell);
   }
 
-  currentSiteswapStr = newSiteswap;
+  currentSiteswapStr = siteswapInput.value.trim().toLowerCase();
   soundedThrows.clear();
   soundedCatches.clear();
   particles = [];
@@ -1907,10 +2172,29 @@ function toggleJuggling() {
   document.getElementById('infoAvg').textContent = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
   document.getElementById('infoPattern').textContent = vals.map(v => v.toString(36)).join('');
 
-  toggleBtn.textContent = '⏸ Pause';
-  toggleBtn.classList.remove('btn-primary');
-  toggleBtn.classList.add('btn-stop');
+  pauseBtn.style.display = '';
+  pauseBtn.textContent = '⏸ Pause';
   animId = requestAnimationFrame(drawFrame);
+}
+
+// ─── PAUSE BUTTON: toggles pause / resume ──────────────────────────
+function togglePause() {
+  if (!sim || !sim.running) return;
+
+  if (!isPaused) {
+    isPaused = true;
+    pauseTimestamp = performance.now();
+    if (animId) cancelAnimationFrame(animId);
+    animId = null;
+    pauseBtn.textContent = '▶ Resume';
+  } else {
+    isPaused = false;
+    const resumeTimestamp = performance.now();
+    totalPausedDuration += (resumeTimestamp - pauseTimestamp);
+    pauseTimestamp = null;
+    pauseBtn.textContent = '⏸ Pause';
+    animId = requestAnimationFrame(drawFrame);
+  }
 }
 
 function fullStop() {
@@ -1926,9 +2210,13 @@ function fullStop() {
   pauseTimestamp = null;
   totalPausedDuration = 0;
   currentSiteswapStr = '';
-  toggleBtn.textContent = '▶ Juggle';
-  toggleBtn.classList.remove('btn-stop');
-  toggleBtn.classList.add('btn-primary');
+  pauseBtn.style.display = 'none';
+  pauseBtn.textContent = '⏸ Pause';
+
+  // Hide equations
+  equationsPanel.style.display = 'none';
+  equationsGrid.innerHTML = '';
+  eqCards = {};
 
   const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
   bgGrad.addColorStop(0, '#0a0a18');
@@ -1954,8 +2242,9 @@ function fullStop() {
   }
 }
 
-toggleBtn.addEventListener('click', toggleJuggling);
-siteswapInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') toggleJuggling(); });
+juggleBtn.addEventListener('click', startJuggling);
+pauseBtn.addEventListener('click', togglePause);
+siteswapInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') startJuggling(); });
 
 speedInput.addEventListener('input', () => {
   if (!sim || !sim.running) return;
@@ -2031,7 +2320,7 @@ function updatePresets() {
     chip.addEventListener('click', () => {
       siteswapInput.value = p.ss;
       fullStop();
-      toggleJuggling();
+      startJuggling();
     });
     presetsDiv.appendChild(chip);
   });
