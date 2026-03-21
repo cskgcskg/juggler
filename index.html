@@ -739,6 +739,39 @@
       font-weight: 600;
     }
 
+    .spin-btn, .ring-spin-btn, .mode-btn {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-dim);
+      border: none;
+      border-right: 1px solid var(--border);
+      padding: 0 12px;
+      height: 100%;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    .spin-btn:last-child, .ring-spin-btn:last-child, .mode-btn:last-child {
+      border-right: none;
+    }
+
+    .spin-btn:hover, .ring-spin-btn:hover, .mode-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+    }
+
+    .spin-btn.active, .ring-spin-btn.active, .mode-btn.active {
+      background: rgba(124, 108, 240, 0.18);
+      color: var(--accent-bright);
+      font-weight: 600;
+    }
+
     /* ─── Trajectory Chart ─── */
     .chart-panel {
       width: 100%;
@@ -760,6 +793,128 @@
       height: auto;
       border-radius: var(--radius-sm);
     }
+
+    /* ─── Camera Controls Overlay ─── */
+    .cam-controls {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      display: flex;
+      gap: 6px;
+      z-index: 10;
+      align-items: center;
+    }
+    .cam-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid rgba(120,100,255,0.2);
+      background: rgba(16,16,32,0.7);
+      color: var(--text-dim);
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      backdrop-filter: blur(8px);
+    }
+    .cam-btn:hover {
+      border-color: var(--accent);
+      color: var(--text);
+      background: rgba(124,108,240,0.15);
+    }
+    .cam-hint {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      background: rgba(16,16,32,0.6);
+      padding: 4px 8px;
+      border-radius: 6px;
+      backdrop-filter: blur(8px);
+      pointer-events: none;
+    }
+
+    /* ─── HUD overlay for beat indicator ─── */
+    .beat-hud {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .beat-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 500;
+      color: #555;
+      background: rgba(120,100,255,0.1);
+      transition: all 0.15s;
+    }
+    .beat-dot.active {
+      background: rgba(168,158,255,0.5);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(168,158,255,0.4);
+      transform: scale(1.2);
+    }
+    .beat-dot.active-a {
+      background: rgba(100,120,255,0.5);
+      box-shadow: 0 0 12px rgba(100,120,255,0.4);
+      color: #fff;
+      transform: scale(1.2);
+    }
+    .beat-dot.active-b {
+      background: rgba(255,100,120,0.5);
+      box-shadow: 0 0 12px rgba(255,100,120,0.4);
+      color: #fff;
+      transform: scale(1.2);
+    }
+    .beat-dot.active-c {
+      background: rgba(100,200,120,0.5);
+      box-shadow: 0 0 12px rgba(100,200,120,0.4);
+      color: #fff;
+      transform: scale(1.2);
+    }
+    .beat-dot.active-d {
+      background: rgba(255,180,80,0.5);
+      box-shadow: 0 0 8px rgba(255,180,80,0.4);
+      color: #fff;
+      transform: scale(1.2);
+    }
+    .beat-dot.juggler-a { background: rgba(100,120,255,0.15); }
+    .beat-dot.juggler-b { background: rgba(255,100,120,0.15); }
+    .beat-dot.juggler-c { background: rgba(100,200,120,0.15); }
+    .beat-dot.juggler-d { background: rgba(255, 180, 80, 0.15); }
+
+    /* ─── Juggler Labels Overlay ─── */
+    .juggler-labels {
+      position: absolute;
+      bottom: 34px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-around;
+      z-index: 10;
+      pointer-events: none;
+      padding: 0 15%;
+    }
+    .juggler-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .juggler-label-a { color: #6070cc; }
+    .juggler-label-b { color: #cc6070; }
+    .juggler-label-c { color: #60cc70; }
+    .juggler-label-d { color: rgba(255, 180, 80, 0.8); }
   </style>
 </head>
 
@@ -774,7 +929,7 @@
 
     <header>
       <h1>Siteswap Explorer</h1>
-      <p>Physics-based juggling pattern simulator</p>
+      <p>Physics-based juggling pattern simulator &mdash; 3D</p>
     </header>
 
     <div class="app">
@@ -798,30 +953,41 @@
           <div class="control-group">
             <label>Props</label>
             <div class="prop-toggle">
-              <button class="prop-btn active" data-prop="balls">🎾 Balls</button>
-              <button class="prop-btn" data-prop="clubs">🪇 Clubs</button>
+              <button class="prop-btn active" data-prop="balls">&#127934; Balls</button>
+              <button class="prop-btn" data-prop="clubs">&#129671; Clubs</button>
+              <button class="prop-btn" data-prop="rings">&#11093; Rings</button>
             </div>
           </div>
           <div class="control-group" id="spinGroup" style="display:none;">
             <label>Spins</label>
-            <div class="prop-toggle">
-              <button class="spin-btn active" data-spin="1">1×</button>
-              <button class="spin-btn" data-spin="2">2×</button>
-              <button class="spin-btn" data-spin="3">3×</button>
+            <div class="prop-toggle" id="clubSpinBtns">
+              <button class="spin-btn" data-spin="0">0&times; Flat</button>
+              <button class="spin-btn active" data-spin="1">1&times;</button>
+              <button class="spin-btn" data-spin="2">2&times;</button>
+              <button class="spin-btn" data-spin="3">3&times;</button>
+              <button class="spin-btn" data-spin="4">4&times; Pancake</button>
+            </div>
+            <div class="prop-toggle" id="ringSpinBtns" style="display:none;">
+              <button class="ring-spin-btn active" data-spin="0">0&times; Flat</button>
+              <button class="ring-spin-btn" data-spin="1">1&times;</button>
+              <button class="ring-spin-btn" data-spin="2">2&times;</button>
+              <button class="ring-spin-btn" data-spin="4">4&times; Pancake</button>
             </div>
           </div>
           <div class="control-group">
             <label>Mode</label>
             <div class="prop-toggle">
-              <button class="mode-btn active" data-mode="solo">🤹 Solo</button>
-              <button class="mode-btn" data-mode="passing">🤹‍♂️🤹‍♀️ Passing</button>
+              <button class="mode-btn active" data-mode="solo">&#129337; Solo</button>
+              <button class="mode-btn" data-mode="passing">&#129337;&#8205;&#9794;&#65039;&#129337;&#8205;&#9792;&#65039; Passing</button>
+              <button class="mode-btn" data-mode="trio">&#129337;&#129337;&#129337; Trio</button>
+              <button class="mode-btn" data-mode="quartet">&#129337;&#129337;&#129337;&#129337; Quartet</button>
             </div>
           </div>
           <div class="control-group" style="flex-direction:row; gap:8px; align-items:flex-end;">
-            <button class="btn btn-primary" id="juggleBtn" style="min-width:100px; text-align:center;">▶ Juggle</button>
-            <button class="btn btn-stop" id="pauseBtn" style="min-width:90px; text-align:center; display:none;">⏸
+            <button class="btn btn-primary" id="juggleBtn" style="min-width:100px; text-align:center;">&#9654; Juggle</button>
+            <button class="btn btn-stop" id="pauseBtn" style="min-width:90px; text-align:center; display:none;">&#9208;
               Pause</button>
-            <button class="btn btn-sound active" id="soundBtn" title="Toggle sound">🔊</button>
+            <button class="btn btn-sound active" id="soundBtn" title="Toggle sound">&#128266;</button>
           </div>
         </div>
       </div>
@@ -834,8 +1000,21 @@
           <canvas id="trajChart"></canvas>
         </div>
 
-        <div class="canvas-wrapper">
-          <canvas id="canvas" width="920" height="700"></canvas>
+        <div class="canvas-wrapper" id="canvasWrapper">
+          <!-- Three.js renderer will be inserted here -->
+          <div class="beat-hud" id="beatHud"></div>
+          <div class="juggler-labels" id="jugglerLabels" style="display:none;">
+            <span class="juggler-label juggler-label-a">A</span>
+            <span class="juggler-label juggler-label-b">B</span>
+            <span class="juggler-label juggler-label-c" style="display:none;">C</span>
+            <span class="juggler-label juggler-label-d" style="display:none;">D</span>
+          </div>
+          <div class="cam-controls">
+            <span class="cam-hint">drag: orbit &middot; scroll: zoom</span>
+            <button class="cam-btn" id="camResetBtn" title="Reset camera">&#8635;</button>
+            <button class="cam-btn" id="camZoomInBtn" title="Zoom in">+</button>
+            <button class="cam-btn" id="camZoomOutBtn" title="Zoom out">&minus;</button>
+          </div>
         </div>
 
         <div class="side-panel side-right glass-card presets-section">
@@ -845,10 +1024,10 @@
       </div>
 
       <div class="info-bar glass-card" id="infoBar">
-        <span><span class="label">Balls</span><span class="val" id="infoNumBalls">—</span></span>
-        <span><span class="label">Period</span><span class="val" id="infoPeriod">—</span></span>
-        <span><span class="label">Average</span><span class="val" id="infoAvg">—</span></span>
-        <span><span class="label">Pattern</span><span class="val" id="infoPattern">—</span></span>
+        <span><span class="label">Balls</span><span class="val" id="infoNumBalls">&mdash;</span></span>
+        <span><span class="label">Period</span><span class="val" id="infoPeriod">&mdash;</span></span>
+        <span><span class="label">Average</span><span class="val" id="infoAvg">&mdash;</span></span>
+        <span><span class="label">Pattern</span><span class="val" id="infoPattern">&mdash;</span></span>
       </div>
 
       <div class="glass-card legend">
@@ -857,7 +1036,7 @@
         <b>Odd</b> numbers cross to the other hand; <b>even</b> numbers return to the same hand.
         <code>0</code> = empty beat, <code>1</code> = a quick handoff, <code>2</code> = a hold.
         Try patterns like <b>441</b>, <b>531</b>, <b>97531</b>, or <b>b</b> (hex for 11).
-        The simulator uses real parabolic gravity arcs — taller throws take longer, just like real life.
+        The simulator uses real parabolic gravity arcs &mdash; taller throws take longer, just like real life.
         <br><br>
         <b>Passing mode</b> uses 4-handed siteswap: beats alternate between juggler A and B.
         <b>Odd</b> throws cross between jugglers (passes); <b>even</b> throws stay with the same juggler (selfs).
@@ -865,32 +1044,13 @@
       </div>
     </div>
 
-    <div class="footer">Built with physics & the Web Audio API</div>
+    <div class="footer">Built with physics, Web Audio &amp; Three.js</div>
 
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
   <script>
-    // ─── SAFARI POLYFILLS ──────────────────────────────────────────────
-
-    if (!CanvasRenderingContext2D.prototype.ellipse) {
-      CanvasRenderingContext2D.prototype.ellipse = function (cx, cy, rx, ry, rotation, startAngle, endAngle, anticlockwise) {
-        this.save();
-        this.translate(cx, cy);
-        this.rotate(rotation);
-        this.scale(rx, ry);
-        this.arc(0, 0, 1, startAngle, endAngle, anticlockwise);
-        this.restore();
-      };
-    }
-
-    function hexAlpha(hex, alpha) {
-      var num = parseInt(hex.replace('#', ''), 16);
-      var r = (num >> 16) & 255;
-      var g = (num >> 8) & 255;
-      var b = num & 255;
-      return 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha / 255).toFixed(3) + ')';
-    }
-
     // ─── AUDIO ENGINE ────────────────────────────────────────────────
 
     let audioCtx = null;
@@ -921,7 +1081,6 @@
     function playPassSound(throwValue) {
       if (!soundEnabled || !audioCtx) return;
       const now = audioCtx.currentTime;
-      // Passing gets a distinctive deeper tone with a slight warble
       const baseFreq = 500 - Math.min(throwValue * 30, 300);
       const osc = audioCtx.createOscillator();
       osc.type = 'sawtooth';
@@ -956,7 +1115,7 @@
     const soundBtn = document.getElementById('soundBtn');
     soundBtn.addEventListener('click', () => {
       soundEnabled = !soundEnabled;
-      soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
+      soundBtn.textContent = soundEnabled ? '\u{1F50A}' : '\u{1F507}';
       soundBtn.classList.toggle('active', soundEnabled);
       if (soundEnabled) initAudio();
     });
@@ -978,35 +1137,27 @@
 
     function validateSiteswap(vals) {
       const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-      if (Math.abs(avg - Math.round(avg)) > 1e-9) return { ok: false, msg: `Average ${avg.toFixed(2)} is not an integer — invalid siteswap.` };
+      if (Math.abs(avg - Math.round(avg)) > 1e-9) return { ok: false, msg: `Average ${avg.toFixed(2)} is not an integer \u2014 invalid siteswap.` };
       const numBalls = Math.round(avg);
       const period = vals.length;
       const landing = new Set();
       for (let i = 0; i < period; i++) {
         const land = (i + vals[i]) % period;
-        if (landing.has(land)) return { ok: false, msg: `Two balls land on the same beat — collision at beat ${land}.` };
+        if (landing.has(land)) return { ok: false, msg: `Two balls land on the same beat \u2014 collision at beat ${land}.` };
         landing.add(land);
       }
       return { ok: true, numBalls, period };
     }
 
-    // ─── PASSING VALIDATION ────────────────────────────────────────────
-    // For passing, we use "4-handed siteswap" interpretation:
-    // The siteswap digits represent throws in a sequence where beats alternate
-    // between juggler A and juggler B. Even throws stay with the same juggler,
-    // odd throws cross to the other juggler (a "pass").
-
     function validatePassingSiteswap(vals) {
-      // In 4-handed siteswap, the average must be an integer — that's the total
-      // number of objects shared between both jugglers.
       const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-      if (Math.abs(avg - Math.round(avg)) > 1e-9) return { ok: false, msg: `Average ${avg.toFixed(2)} is not an integer — invalid passing siteswap.` };
+      if (Math.abs(avg - Math.round(avg)) > 1e-9) return { ok: false, msg: `Average ${avg.toFixed(2)} is not an integer \u2014 invalid passing siteswap.` };
       const numBalls = Math.round(avg);
       const period = vals.length;
       const landing = new Set();
       for (let i = 0; i < period; i++) {
         const land = (i + vals[i]) % period;
-        if (landing.has(land)) return { ok: false, msg: `Two balls land on the same beat — collision at beat ${land}.` };
+        if (landing.has(land)) return { ok: false, msg: `Two balls land on the same beat \u2014 collision at beat ${land}.` };
         landing.add(land);
       }
       return { ok: true, numBalls, period };
@@ -1035,14 +1186,25 @@
     const BALL_RADIUS = 13;
     const METER_TO_PX = 140;
 
-    // Solo mode layout (centered)
     const SOLO_CENTER_X = W / 2;
     const SOLO_HAND_SPREAD = 140;
 
-    // Passing mode layout (two jugglers facing each other)
-    const PASS_JUGGLER_A_X = 230;  // Left juggler center
-    const PASS_JUGGLER_B_X = 690;  // Right juggler center
-    const PASS_HAND_SPREAD = 70;   // Tighter hand spread for passing
+    const PASS_JUGGLER_A_X = 230;
+    const PASS_JUGGLER_B_X = 690;
+    const PASS_HAND_SPREAD = 70;
+
+    // Trio mode layout (3 jugglers in a triangle/line)
+    const TRIO_JUGGLER_A_X = 160;   // Left
+    const TRIO_JUGGLER_B_X = 460;   // Center
+    const TRIO_JUGGLER_C_X = 760;   // Right
+    const TRIO_HAND_SPREAD = 55;
+
+    // Quartet mode layout (4 jugglers in a line)
+    const QUARTET_JUGGLER_A_X = 100;   // Far left
+    const QUARTET_JUGGLER_B_X = 340;   // Center-left
+    const QUARTET_JUGGLER_C_X = 580;   // Center-right
+    const QUARTET_JUGGLER_D_X = 820;   // Far right
+    const QUARTET_HAND_SPREAD = 45;
 
     const BALL_COLORS = [
       '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7',
@@ -1063,7 +1225,7 @@
     let isPaused = false;
     let pauseTimestamp = null;
     let totalPausedDuration = 0;
-    let currentMode = 'solo'; // 'solo' or 'passing'
+    let currentMode = 'solo';
 
     function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
     function lcm(a, b) { return (a / gcd(a, b)) * b; }
@@ -1142,11 +1304,6 @@
     }
 
     // ─── PASSING SIMULATOR ─────────────────────────────────────────────
-    // 4-handed siteswap: beats alternate between jugglers A and B.
-    // Even beats → juggler A, odd beats → juggler B.
-    // Within each juggler, their own sub-beats alternate L/R hands.
-    // Odd-valued throws cross between jugglers ("passes").
-    // Even-valued throws stay within the same juggler ("selfs").
 
     function createPassingSimulator(vals, bpm, dwellRatio) {
       const validation = validatePassingSiteswap(vals);
@@ -1183,29 +1340,20 @@
       }
       const ballCycle = ballMap.slice(cycleStart, cycleStart + cycleLen);
 
-      // Which juggler owns a given global beat?
-      // Even beats → A, odd beats → B
       function jugglerForBeat(beat) {
         return beat % 2 === 0 ? 'A' : 'B';
       }
 
-      // Which hand within that juggler?
-      // We count how many beats this juggler has had so far.
-      // Juggler A gets beats 0, 2, 4, 6… → sub-beat index = beat/2
-      // Juggler B gets beats 1, 3, 5, 7… → sub-beat index = (beat-1)/2
       function handForBeat(beat) {
         const juggler = jugglerForBeat(beat);
         const subBeat = juggler === 'A' ? beat / 2 : (beat - 1) / 2;
         return Math.floor(subBeat) % 2 === 0 ? 'R' : 'L';
       }
 
-      // Get the x position of a hand
       function handX(juggler, hand) {
         if (juggler === 'A') {
-          // Left juggler — L hand is further left, R hand is inner (toward B)
           return hand === 'L' ? PASS_JUGGLER_A_X - PASS_HAND_SPREAD : PASS_JUGGLER_A_X + PASS_HAND_SPREAD;
         } else {
-          // Right juggler — L hand is inner (toward A), R hand is further right
           return hand === 'L' ? PASS_JUGGLER_B_X - PASS_HAND_SPREAD : PASS_JUGGLER_B_X + PASS_HAND_SPREAD;
         }
       }
@@ -1214,8 +1362,6 @@
         const v = vals[beat % period];
         const fromJuggler = jugglerForBeat(beat);
         const fromHand = handForBeat(beat);
-
-        // Determine destination
         let toJuggler, toHand;
         const landBeat = beat + v;
 
@@ -1226,7 +1372,6 @@
           toJuggler = fromJuggler;
           toHand = fromHand;
         } else {
-          // Where does the ball land?
           toJuggler = jugglerForBeat(landBeat);
           toHand = handForBeat(landBeat);
         }
@@ -1258,6 +1403,213 @@
       };
     }
 
+    // ─── TRIO SIMULATOR (3-person passing) ──────────────────────────────
+
+    function createTrioSimulator(vals, bpm, dwellRatio) {
+      const validation = validatePassingSiteswap(vals);
+      const { numBalls, period } = validation;
+      const beatSec = 60 / bpm;
+      const maxThrow = Math.max(...vals);
+      const estimatedCycle = lcm(period, numBalls);
+      const simBeats = Math.max(estimatedCycle * 4 + maxThrow * 2, period * numBalls * 4 + maxThrow * 3);
+      const ballMap = new Array(simBeats).fill(-1);
+      let nextBall = 0;
+
+      for (let beat = 0; beat < simBeats; beat++) {
+        if (ballMap[beat] === -1 && nextBall < numBalls) {
+          ballMap[beat] = nextBall++;
+        }
+        if (ballMap[beat] >= 0) {
+          const v = vals[beat % period];
+          const landBeat = beat + v;
+          if (v > 0 && landBeat < simBeats) {
+            ballMap[landBeat] = ballMap[beat];
+          }
+        }
+      }
+
+      const cycleStart = maxThrow + numBalls + period;
+      let cycleLen = estimatedCycle;
+      for (let tryLen = estimatedCycle; tryLen <= simBeats / 3; tryLen += period) {
+        let match = true;
+        for (let i = cycleStart; i < cycleStart + tryLen; i++) {
+          if (i + tryLen >= simBeats) { match = false; break; }
+          if (ballMap[i] !== ballMap[i + tryLen]) { match = false; break; }
+        }
+        if (match) { cycleLen = tryLen; break; }
+      }
+      const ballCycle = ballMap.slice(cycleStart, cycleStart + cycleLen);
+
+      function jugglerForBeat(beat) {
+        const m = beat % 3;
+        return m === 0 ? 'A' : m === 1 ? 'B' : 'C';
+      }
+
+      function handForBeat(beat) {
+        const juggler = jugglerForBeat(beat);
+        let subBeat;
+        if (juggler === 'A') subBeat = Math.floor(beat / 3);
+        else if (juggler === 'B') subBeat = Math.floor((beat - 1) / 3);
+        else subBeat = Math.floor((beat - 2) / 3);
+        return subBeat % 2 === 0 ? 'R' : 'L';
+      }
+
+      function handX(juggler, hand) {
+        let center;
+        if (juggler === 'A') center = TRIO_JUGGLER_A_X;
+        else if (juggler === 'B') center = TRIO_JUGGLER_B_X;
+        else center = TRIO_JUGGLER_C_X;
+        return hand === 'L' ? center - TRIO_HAND_SPREAD : center + TRIO_HAND_SPREAD;
+      }
+
+      function throwInfoAt(beat) {
+        const v = vals[beat % period];
+        const fromJuggler = jugglerForBeat(beat);
+        const fromHand = handForBeat(beat);
+        let toJuggler, toHand;
+        const landBeat = beat + v;
+
+        if (v === 0 || v === 2) {
+          toJuggler = fromJuggler;
+          toHand = fromHand;
+        } else {
+          toJuggler = jugglerForBeat(landBeat);
+          toHand = handForBeat(landBeat);
+        }
+
+        const isPass = toJuggler !== fromJuggler;
+
+        return {
+          v, from: fromHand, to: toHand,
+          fromJuggler, toJuggler,
+          isPass,
+          fromX: handX(fromJuggler, fromHand),
+          toX: handX(toJuggler, toHand)
+        };
+      }
+
+      function ballIdAt(beat) {
+        if (beat < 0) return -1;
+        if (beat < simBeats) return ballMap[beat];
+        const offset = ((beat - cycleStart) % cycleLen + cycleLen) % cycleLen;
+        return ballCycle[offset];
+      }
+
+      return {
+        vals, period, numBalls, beatSec, dwellRatio, maxThrow,
+        handX, handForBeat, throwInfoAt, ballIdAt, jugglerForBeat,
+        passing: true,
+        trio: true,
+        startTime: null,
+        running: true
+      };
+    }
+
+    // ─── QUARTET SIMULATOR (4-person passing) ────────────────────────────
+
+    function createQuartetSimulator(vals, bpm, dwellRatio) {
+      const validation = validatePassingSiteswap(vals);
+      const { numBalls, period } = validation;
+      const beatSec = 60 / bpm;
+      const maxThrow = Math.max(...vals);
+      const estimatedCycle = lcm(period, numBalls);
+      const simBeats = Math.max(estimatedCycle * 4 + maxThrow * 2, period * numBalls * 4 + maxThrow * 3);
+      const ballMap = new Array(simBeats).fill(-1);
+      let nextBall = 0;
+
+      for (let beat = 0; beat < simBeats; beat++) {
+        if (ballMap[beat] === -1 && nextBall < numBalls) {
+          ballMap[beat] = nextBall++;
+        }
+        if (ballMap[beat] >= 0) {
+          const v = vals[beat % period];
+          const landBeat = beat + v;
+          if (v > 0 && landBeat < simBeats) {
+            ballMap[landBeat] = ballMap[beat];
+          }
+        }
+      }
+
+      const cycleStart = maxThrow + numBalls + period;
+      let cycleLen = estimatedCycle;
+      for (let tryLen = estimatedCycle; tryLen <= simBeats / 3; tryLen += period) {
+        let match = true;
+        for (let i = cycleStart; i < cycleStart + tryLen; i++) {
+          if (i + tryLen >= simBeats) { match = false; break; }
+          if (ballMap[i] !== ballMap[i + tryLen]) { match = false; break; }
+        }
+        if (match) { cycleLen = tryLen; break; }
+      }
+      const ballCycle = ballMap.slice(cycleStart, cycleStart + cycleLen);
+
+      function jugglerForBeat(beat) {
+        const m = beat % 4;
+        return m === 0 ? 'A' : m === 1 ? 'B' : m === 2 ? 'C' : 'D';
+      }
+
+      function handForBeat(beat) {
+        const juggler = jugglerForBeat(beat);
+        let subBeat;
+        if (juggler === 'A') subBeat = Math.floor(beat / 4);
+        else if (juggler === 'B') subBeat = Math.floor((beat - 1) / 4);
+        else if (juggler === 'C') subBeat = Math.floor((beat - 2) / 4);
+        else subBeat = Math.floor((beat - 3) / 4);
+        return subBeat % 2 === 0 ? 'R' : 'L';
+      }
+
+      function handX(juggler, hand) {
+        let center;
+        if (juggler === 'A') center = QUARTET_JUGGLER_A_X;
+        else if (juggler === 'B') center = QUARTET_JUGGLER_B_X;
+        else if (juggler === 'C') center = QUARTET_JUGGLER_C_X;
+        else center = QUARTET_JUGGLER_D_X;
+        return hand === 'L' ? center - QUARTET_HAND_SPREAD : center + QUARTET_HAND_SPREAD;
+      }
+
+      function throwInfoAt(beat) {
+        const v = vals[beat % period];
+        const fromJuggler = jugglerForBeat(beat);
+        const fromHand = handForBeat(beat);
+        let toJuggler, toHand;
+        const landBeat = beat + v;
+
+        if (v === 0 || v === 2) {
+          toJuggler = fromJuggler;
+          toHand = fromHand;
+        } else {
+          toJuggler = jugglerForBeat(landBeat);
+          toHand = handForBeat(landBeat);
+        }
+
+        const isPass = toJuggler !== fromJuggler;
+
+        return {
+          v, from: fromHand, to: toHand,
+          fromJuggler, toJuggler,
+          isPass,
+          fromX: handX(fromJuggler, fromHand),
+          toX: handX(toJuggler, toHand)
+        };
+      }
+
+      function ballIdAt(beat) {
+        if (beat < 0) return -1;
+        if (beat < simBeats) return ballMap[beat];
+        const offset = ((beat - cycleStart) % cycleLen + cycleLen) % cycleLen;
+        return ballCycle[offset];
+      }
+
+      return {
+        vals, period, numBalls, beatSec, dwellRatio, maxThrow,
+        handX, handForBeat, throwInfoAt, ballIdAt, jugglerForBeat,
+        passing: true,
+        trio: false,
+        quartet: true,
+        startTime: null,
+        running: true
+      };
+    }
+
     // ─── BALL STATE COMPUTATION ────────────────────────────────────────
 
     function getBallStates(sim, now) {
@@ -1270,7 +1622,6 @@
 
       const balls = [];
 
-      // Build hand states based on mode
       let handStates;
       if (sim.passing) {
         handStates = {
@@ -1283,6 +1634,18 @@
             R: { x: sim.handX('B', 'R'), y: HAND_Y, holding: false }
           }
         };
+        if (sim.trio || sim.quartet) {
+          handStates.C = {
+            L: { x: sim.handX('C', 'L'), y: HAND_Y, holding: false },
+            R: { x: sim.handX('C', 'R'), y: HAND_Y, holding: false }
+          };
+        }
+        if (sim.quartet) {
+          handStates.D = {
+            L: { x: sim.handX('D', 'L'), y: HAND_Y, holding: false },
+            R: { x: sim.handX('D', 'R'), y: HAND_Y, holding: false }
+          };
+        }
       } else {
         handStates = {
           L: { x: sim.handX('L'), y: HAND_Y, holding: false },
@@ -1341,10 +1704,13 @@
 
           let scoopDir;
           if (sim.passing) {
-            // Scoop direction: in passing, inner hands scoop inward
-            scoopDir = info.from === 'R' && info.fromJuggler === 'A' ? 1 :
-              info.from === 'L' && info.fromJuggler === 'A' ? -1 :
-                info.from === 'L' && info.fromJuggler === 'B' ? -1 : 1;
+            if (info.fromJuggler === 'A') {
+              scoopDir = info.from === 'R' ? 1 : -1;
+            } else if (info.fromJuggler === 'B') {
+              scoopDir = info.from === 'L' ? -1 : 1;
+            } else {
+              scoopDir = info.from === 'R' ? 1 : -1;
+            }
           } else {
             scoopDir = info.from === 'L' ? 1 : -1;
           }
@@ -1370,7 +1736,6 @@
 
           let throwX, catchX;
           if (sim.passing && info.isPass) {
-            // Passes: throw from inner side, catch on inner side
             const throwOffset = 20;
             const catchOffset = 20;
             if (info.fromJuggler === 'A') {
@@ -1384,7 +1749,6 @@
             const insideOffset = sim.passing ? 15 : 30;
             const outsideOffset = sim.passing ? 10 : 20;
             if (sim.passing) {
-              // Self throws within one juggler
               const jugX = info.fromJuggler === 'A' ? PASS_JUGGLER_A_X : PASS_JUGGLER_B_X;
               const fromIsInner = (info.fromJuggler === 'A' && info.from === 'R') ||
                 (info.fromJuggler === 'B' && info.from === 'L');
@@ -1400,15 +1764,12 @@
 
           bx = throwX + (catchX - throwX) * frac;
 
-          // Passes fly lower (flatter arc) than self throws
           const heightScale = (sim.passing && info.isPass) ? 0.55 : 1.0;
           const peakH = peakHeight(airtime) * METER_TO_PX * heightScale;
           by = HAND_Y - 4 * peakH * frac * (1 - frac);
 
-          // Capture equation data for real-time display
           eqData = { throwX, catchX, peakH, airtime, frac, t: elapsed - throwMoment };
 
-          // Sound
           const throwKey = `${foundBeat}_${ballId}`;
           if (frac < 0.15 && !soundedThrows.has(throwKey)) {
             soundedThrows.add(throwKey);
@@ -1481,1066 +1842,14 @@
       }
     }
 
-    function drawParticles(ctx) {
-      for (const p of particles) {
-        const alpha = Math.max(0, p.life);
-        ctx.globalAlpha = alpha * 0.7;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-    }
-
-    // ─── RENDERER ──────────────────────────────────────────────────────
-
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-
-    function drawFrame(timestamp) {
-      if (!sim || !sim.running) return;
-      if (isPaused) return;
-
-      const now = (timestamp - totalPausedDuration) / 1000;
-      const { balls, handStates, globalBeatF } = getBallStates(sim, now);
-
-      // Background
-      const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-      bgGrad.addColorStop(0, '#0a0a18');
-      bgGrad.addColorStop(0.5, '#0e0e1e');
-      bgGrad.addColorStop(1, '#080814');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, W, H);
-
-      // Grid
-      for (let y = 50; y < H; y += 50) {
-        const gridAlpha = 0.04 + Math.sin(y * 0.01 + timestamp * 0.0005) * 0.015;
-        ctx.strokeStyle = `rgba(120, 100, 255, ${gridAlpha})`;
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(W, y);
-        ctx.stroke();
-      }
-
-      // Draw juggler(s)
-      if (sim.passing) {
-        // Draw passing arc indicator between jugglers (subtle floor marking)
-        ctx.strokeStyle = 'rgba(124, 108, 240, 0.06)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 8]);
-        ctx.beginPath();
-        ctx.moveTo(PASS_JUGGLER_A_X + PASS_HAND_SPREAD + 20, HAND_Y + 10);
-        ctx.lineTo(PASS_JUGGLER_B_X - PASS_HAND_SPREAD - 20, HAND_Y + 10);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        drawJugglerAt(ctx, handStates.A, PASS_JUGGLER_A_X, 'boy', '#4a4080');
-        drawJugglerAt(ctx, handStates.B, PASS_JUGGLER_B_X, 'girl', '#804a60');
-      } else {
-        drawJugglerAt(ctx, handStates, SOLO_CENTER_X, 'boy', '#4a4080');
-      }
-
-      // Particles
-      updateParticles();
-      drawParticles(ctx);
-
-      // Draw props
-      const propType = currentPropType;
-      if (propType === 'clubs') {
-        for (const ball of balls) {
-          if (!trails[ball.id]) trails[ball.id] = [];
-          trails[ball.id].push({ x: ball.x, y: ball.y });
-          if (trails[ball.id].length > MAX_TRAIL) trails[ball.id].shift();
-          const trail = trails[ball.id];
-          if (trail.length > 2) {
-            for (let i = 1; i < trail.length; i++) {
-              const alpha = (i / trail.length) * 0.2;
-              ctx.fillStyle = hexAlpha(ball.color, Math.floor(alpha * 255));
-              ctx.beginPath();
-              ctx.arc(trail[i].x, trail[i].y, 2, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          }
-        }
-        for (const ball of balls) {
-          drawClub(ctx, ball);
-        }
-      } else {
-        for (const ball of balls) {
-          if (!trails[ball.id]) trails[ball.id] = [];
-          trails[ball.id].push({ x: ball.x, y: ball.y });
-          if (trails[ball.id].length > MAX_TRAIL) trails[ball.id].shift();
-          const trail = trails[ball.id];
-          if (trail.length > 2) {
-            for (let i = 1; i < trail.length; i++) {
-              const alpha = (i / trail.length) * 0.3;
-              const r = BALL_RADIUS * (i / trail.length) * 0.45;
-              ctx.fillStyle = hexAlpha(ball.color, Math.floor(alpha * 255));
-              ctx.beginPath();
-              ctx.arc(trail[i].x, trail[i].y, r, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          }
-        }
-
-        for (const ball of balls) {
-          // Pass glow — slightly bigger/brighter for balls in flight between jugglers
-          const glowMult = (ball.isPass && ball.airFrac > 0) ? 1.3 : 1.0;
-
-          const grad = ctx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, BALL_RADIUS * 3 * glowMult);
-          grad.addColorStop(0, hexAlpha(ball.color, Math.floor(0x40 * glowMult)));
-          grad.addColorStop(0.5, hexAlpha(ball.color, 0x15));
-          grad.addColorStop(1, hexAlpha(ball.color, 0x00));
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(ball.x, ball.y, BALL_RADIUS * 3 * glowMult, 0, Math.PI * 2);
-          ctx.fill();
-
-          const ballGrad = ctx.createRadialGradient(ball.x - 4, ball.y - 4, 1, ball.x + 2, ball.y + 2, BALL_RADIUS);
-          ballGrad.addColorStop(0, '#ffffff');
-          ballGrad.addColorStop(0.2, lightenColor(ball.color, 30));
-          ballGrad.addColorStop(0.6, ball.color);
-          ballGrad.addColorStop(1, shadeColor(ball.color, -50));
-          ctx.fillStyle = ballGrad;
-          ctx.beginPath();
-          ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.strokeStyle = hexAlpha(shadeColor(ball.color, -70), 0x80);
-          ctx.lineWidth = 1;
-          ctx.stroke();
-
-          ctx.fillStyle = 'rgba(255,255,255,0.35)';
-          ctx.beginPath();
-          ctx.ellipse(ball.x - 3, ball.y - 4, 4, 2.5, -0.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      // Beat indicator
-      const beatCenterX = W / 2;
-      const currentBeatInPattern = Math.floor(globalBeatF) % sim.period;
-      const beatY = H - 22;
-      const totalBeatW = sim.period * 18;
-      const startBeatX = beatCenterX - totalBeatW / 2;
-
-      for (let i = 0; i < sim.period; i++) {
-        const bx = startBeatX + i * 18 + 9;
-        const isActive = i === currentBeatInPattern;
-
-        // In passing mode, color-code beats by juggler
-        let dotColor = 'rgba(120,100,255,0.15)';
-        let activeColor = '#a89eff';
-        if (sim.passing) {
-          const juggler = sim.jugglerForBeat(i);
-          if (juggler === 'A') {
-            dotColor = 'rgba(100,120,255,0.2)';
-            activeColor = '#8090ff';
-          } else {
-            dotColor = 'rgba(255,100,120,0.2)';
-            activeColor = '#ff8090';
-          }
-        }
-
-        if (isActive) {
-          const pulseGrad = ctx.createRadialGradient(bx, beatY, 0, bx, beatY, 12);
-          pulseGrad.addColorStop(0, hexAlpha(activeColor.replace('#', ''), 0x66));
-          pulseGrad.addColorStop(1, hexAlpha(activeColor.replace('#', ''), 0x00));
-          ctx.fillStyle = pulseGrad;
-          ctx.beginPath();
-          ctx.arc(bx, beatY, 12, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = activeColor;
-          ctx.beginPath();
-          ctx.arc(bx, beatY, 5, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#fff';
-          ctx.font = '500 11px "JetBrains Mono", monospace';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(sim.vals[i].toString(36), bx, beatY);
-        } else {
-          ctx.fillStyle = dotColor;
-          ctx.beginPath();
-          ctx.arc(bx, beatY, 4, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#555';
-          ctx.font = '400 10px "JetBrains Mono", monospace';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(sim.vals[i].toString(36), bx, beatY);
-        }
-      }
-
-      // Passing mode: label jugglers
-      if (sim.passing) {
-        ctx.font = '600 11px "DM Sans", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#6070cc';
-        ctx.fillText('A', PASS_JUGGLER_A_X, H - 45);
-        ctx.fillStyle = '#cc6070';
-        ctx.fillText('B', PASS_JUGGLER_B_X, H - 45);
-      }
-
-      // ── Update trajectory chart ──
-      updateTrajectoryChart(balls);
-
-      animId = requestAnimationFrame(drawFrame);
-    }
-
-    // ─── TRAJECTORY CHART ──────────────────────────────────────────────
-    // Draws individual mini parabola charts per ball, laid out in a grid.
-    // Each ball gets its own subplot — no overlap.
-
-    const trajCanvas = document.getElementById('trajChart');
-    const trajCtx = trajCanvas.getContext('2d');
-    const chartPanel = document.getElementById('chartPanel');
-
-    function updateTrajectoryChart(balls) {
-      if (!sim) return;
-      chartPanel.style.display = '';
-
-      const c = trajCtx;
-      const numBalls = sim.numBalls;
-
-      // Dynamic canvas sizing: grid layout
-      const cols = 1;
-      const rows = numBalls;
-      const cellW = 210, cellH = 80;
-      const gap = 6;
-      const totalW = cellW + 16;
-      const totalH = rows * cellH + (rows - 1) * gap + 12;
-
-      trajCanvas.width = totalW;
-      trajCanvas.height = totalH;
-
-      // Background
-      c.fillStyle = '#080814';
-      c.fillRect(0, 0, totalW, totalH);
-
-      // Build lookup: ball id → curve data
-      const curveMap = {};
-      for (const ball of balls) {
-        if (ball.eqData && ball.airFrac > 0) {
-          const eq = ball.eqData;
-          const T = eq.airtime;
-          if (T > 0) {
-            const peakM = eq.peakH / METER_TO_PX;
-            const v0y = 2 * peakM / (T / 2);
-            curveMap[ball.id] = { color: ball.color, T, v0y, t: eq.t, frac: eq.frac };
-          }
-        }
-        if (!curveMap[ball.id]) {
-          curveMap[ball.id] = null; // not in flight
-        }
-      }
-
-      for (let i = 0; i < numBalls; i++) {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const ox = 8;
-        const oy = 6 + row * (cellH + gap);
-        const color = BALL_COLORS[i % BALL_COLORS.length];
-        const cv = curveMap[i];
-
-        // Cell background
-        c.fillStyle = cv ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.008)';
-        if (c.roundRect) {
-          c.beginPath();
-          c.roundRect(ox, oy, cellW, cellH, 6);
-          c.fill();
-        } else {
-          c.fillRect(ox, oy, cellW, cellH);
-        }
-
-        // Cell border
-        c.strokeStyle = cv ? (color + '35') : 'rgba(120,100,255,0.06)';
-        c.lineWidth = 1;
-        if (c.roundRect) {
-          c.beginPath();
-          c.roundRect(ox, oy, cellW, cellH, 6);
-          c.stroke();
-        } else {
-          c.strokeRect(ox, oy, cellW, cellH);
-        }
-
-        // Ball label dot
-        c.fillStyle = color;
-        c.beginPath();
-        c.arc(ox + 10, oy + 10, 4, 0, Math.PI * 2);
-        c.fill();
-
-        // Ball number
-        c.fillStyle = cv ? color : '#3d3a5a';
-        c.font = '600 9px "JetBrains Mono", monospace';
-        c.textAlign = 'left';
-        c.textBaseline = 'middle';
-        c.fillText('#' + (i + 1), ox + 18, oy + 10);
-
-        // Chart area within cell
-        const ml = 28, mr = 6, mt = 22, mb = 14;
-        const cw = cellW - ml - mr;
-        const ch = cellH - mt - mb;
-
-        if (!cv) {
-          // Not in flight — show dimmed placeholder
-          c.fillStyle = '#2a2845';
-          c.font = '400 9px "JetBrains Mono", monospace';
-          c.textAlign = 'center';
-          c.textBaseline = 'middle';
-          c.fillText('in hand', ox + cellW / 2, oy + cellH / 2 + 4);
-          continue;
-        }
-
-        // Equation label
-        c.fillStyle = color + 'AA';
-        c.font = '500 8px "JetBrains Mono", monospace';
-        c.textAlign = 'right';
-        c.textBaseline = 'middle';
-        c.fillText('y=' + cv.v0y.toFixed(1) + 't\u22124.9t\u00B2', ox + cellW - mr, oy + 10);
-
-        // Axis scale for this curve
-        const maxT = cv.T * 1.1;
-        const peakH = cv.v0y * cv.v0y / (2 * GRAVITY);
-        const maxH = peakH * 1.2 || 0.5;
-
-        // Mini grid
-        c.strokeStyle = 'rgba(120,100,255,0.06)';
-        c.lineWidth = 0.5;
-        for (let g = 0.25; g < 1; g += 0.25) {
-          const gy = oy + mt + ch - g * ch;
-          c.beginPath(); c.moveTo(ox + ml, gy); c.lineTo(ox + ml + cw, gy); c.stroke();
-          const gx = ox + ml + g * cw;
-          c.beginPath(); c.moveTo(gx, oy + mt); c.lineTo(gx, oy + mt + ch); c.stroke();
-        }
-
-        // Mini axes
-        c.strokeStyle = 'rgba(120,100,255,0.15)';
-        c.lineWidth = 0.7;
-        c.beginPath();
-        c.moveTo(ox + ml, oy + mt);
-        c.lineTo(ox + ml, oy + mt + ch);
-        c.lineTo(ox + ml + cw, oy + mt + ch);
-        c.stroke();
-
-        // Tick labels
-        c.fillStyle = '#3d3a5a';
-        c.font = '400 7px "JetBrains Mono", monospace';
-        c.textAlign = 'center';
-        c.textBaseline = 'top';
-        c.fillText(maxT.toFixed(1) + 's', ox + ml + cw, oy + mt + ch + 2);
-        c.fillText('0', ox + ml, oy + mt + ch + 2);
-        c.textAlign = 'right';
-        c.textBaseline = 'middle';
-        c.fillText(peakH.toFixed(1) + 'm', ox + ml - 3, oy + mt);
-
-        // Full parabola (faded)
-        const steps = 50;
-        c.beginPath();
-        c.strokeStyle = color + '25';
-        c.lineWidth = 1.2;
-        for (let s = 0; s <= steps; s++) {
-          const t = (s / steps) * cv.T;
-          const h = cv.v0y * t - 0.5 * GRAVITY * t * t;
-          const x = ox + ml + (t / maxT) * cw;
-          const y = oy + mt + ch - (Math.max(0, h) / maxH) * ch;
-          if (s === 0) c.moveTo(x, y); else c.lineTo(x, y);
-        }
-        c.stroke();
-
-        // Progress arc (bright)
-        const pSteps = Math.max(1, Math.floor(cv.frac * steps));
-        c.beginPath();
-        c.strokeStyle = color;
-        c.lineWidth = 2;
-        c.shadowColor = color;
-        c.shadowBlur = 4;
-        for (let s = 0; s <= pSteps; s++) {
-          const t = (s / steps) * cv.T;
-          const h = cv.v0y * t - 0.5 * GRAVITY * t * t;
-          const x = ox + ml + (t / maxT) * cw;
-          const y = oy + mt + ch - (Math.max(0, h) / maxH) * ch;
-          if (s === 0) c.moveTo(x, y); else c.lineTo(x, y);
-        }
-        c.stroke();
-        c.shadowBlur = 0;
-
-        // Current dot
-        const curH = cv.v0y * cv.t - 0.5 * GRAVITY * cv.t * cv.t;
-        const dotX = ox + ml + (cv.t / maxT) * cw;
-        const dotY = oy + mt + ch - (Math.max(0, curH) / maxH) * ch;
-        c.fillStyle = color;
-        c.beginPath();
-        c.arc(dotX, dotY, 3.5, 0, Math.PI * 2);
-        c.fill();
-        c.fillStyle = '#fff';
-        c.beginPath();
-        c.arc(dotX - 0.8, dotY - 0.8, 1.2, 0, Math.PI * 2);
-        c.fill();
-
-        // Live values
-        c.fillStyle = '#6a6890';
-        c.font = '400 7px "JetBrains Mono", monospace';
-        c.textAlign = 'right';
-        c.textBaseline = 'bottom';
-        c.fillText('t=' + cv.t.toFixed(2) + 's h=' + Math.max(0, curH).toFixed(2) + 'm', ox + cellW - mr, oy + cellH - 2);
-      }
-    }
-
-    // ─── JUGGLER DRAWING ───────────────────────────────────────────────
-    // Draws a juggler. `gender`: 'boy' or 'girl' controls appearance.
-    // `torsoColor` differentiates the two jugglers in passing mode.
-
-    function drawJugglerAt(ctx, hs, centerX, gender, torsoColor) {
-      const isGirl = gender === 'girl';
-      ctx.save();
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      // In passing mode, hs has .L and .R; in solo mode, same structure
-      const lhx = hs.L.x, lhy = hs.L.y;
-      const rhx = hs.R.x, rhy = hs.R.y;
-
-      const headY = 510;
-      const headRx = 17, headRy = 20;
-      const neckY = headY + headRy + 2;
-      const shoulderY = neckY + 10;
-      const shoulderW = 40;
-      const hipY = shoulderY + 60;
-      const hipW = 22;
-      const kneeY = hipY + 38;
-      const footY = hipY + 62;
-
-      // Ambient glow
-      const ambGlow = ctx.createRadialGradient(centerX, shoulderY + 30, 10, centerX, shoulderY + 30, 140);
-      ambGlow.addColorStop(0, 'rgba(124, 108, 240, 0.06)');
-      ambGlow.addColorStop(1, 'rgba(124, 108, 240, 0)');
-      ctx.fillStyle = ambGlow;
-      ctx.beginPath();
-      ctx.arc(centerX, shoulderY + 30, 140, 0, Math.PI * 2);
-      ctx.fill();
-
-      // ── CLOTHING — gender-specific ──
-      if (isGirl) {
-        // ── Girl: A-line dress covering torso + upper legs ──
-        const dressColor1 = '#b0406a';
-        const dressColor2 = '#802050';
-        const dressAccent = '#d4608a';
-
-        // Legs (visible below dress)
-        const legThick = 6;
-        const legColor = '#c8a88a'; // skin-colored legs
-        const lFootX = centerX - 22, rFootX = centerX + 22;
-        const dressHemY = hipY + 22;
-
-        ctx.strokeStyle = legColor;
-        ctx.lineWidth = legThick;
-        ctx.beginPath();
-        ctx.moveTo(centerX - 14, dressHemY);
-        ctx.lineTo(lFootX, footY);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(centerX + 14, dressHemY);
-        ctx.lineTo(rFootX, footY);
-        ctx.stroke();
-
-        // Shoes (smaller, cuter)
-        ctx.fillStyle = '#2a2845';
-        ctx.beginPath();
-        ctx.ellipse(lFootX - 1, footY + 1, 10, 5, -0.1, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#e74c3c';
-        ctx.beginPath();
-        ctx.ellipse(lFootX - 1, footY - 1, 8, 4, -0.1, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#2a2845';
-        ctx.beginPath();
-        ctx.ellipse(rFootX + 1, footY + 1, 10, 5, 0.1, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#e74c3c';
-        ctx.beginPath();
-        ctx.ellipse(rFootX + 1, footY - 1, 8, 4, 0.1, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Dress body (A-line shape: narrow at shoulders, flared at hem)
-        const dressFlare = 38;
-        ctx.beginPath();
-        ctx.moveTo(centerX - shoulderW + 4, shoulderY);
-        ctx.quadraticCurveTo(centerX - shoulderW - 4, (shoulderY + dressHemY) / 2, centerX - dressFlare, dressHemY);
-        ctx.lineTo(centerX + dressFlare, dressHemY);
-        ctx.quadraticCurveTo(centerX + shoulderW + 4, (shoulderY + dressHemY) / 2, centerX + shoulderW - 4, shoulderY);
-        ctx.closePath();
-        const dressGrad = ctx.createLinearGradient(centerX, shoulderY, centerX, dressHemY);
-        dressGrad.addColorStop(0, dressColor1);
-        dressGrad.addColorStop(0.6, dressColor2);
-        dressGrad.addColorStop(1, shadeColor(dressColor2, -15));
-        ctx.fillStyle = dressGrad;
-        ctx.fill();
-        ctx.strokeStyle = dressAccent;
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
-
-        // Waist belt/ribbon
-        const waistY = shoulderY + 28;
-        ctx.fillStyle = dressAccent;
-        ctx.beginPath();
-        const waistW = shoulderW - 2 + (dressFlare - shoulderW + 2) * ((waistY - shoulderY) / (dressHemY - shoulderY));
-        ctx.ellipse(centerX, waistY, waistW, 3, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Small bow at waist
-        ctx.fillStyle = '#e06888';
-        ctx.beginPath();
-        ctx.moveTo(centerX, waistY);
-        ctx.quadraticCurveTo(centerX - 8, waistY - 5, centerX - 6, waistY + 2);
-        ctx.quadraticCurveTo(centerX - 3, waistY + 4, centerX, waistY);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(centerX, waistY);
-        ctx.quadraticCurveTo(centerX + 8, waistY - 5, centerX + 6, waistY + 2);
-        ctx.quadraticCurveTo(centerX + 3, waistY + 4, centerX, waistY);
-        ctx.fill();
-
-        // Neckline (V-shaped)
-        ctx.beginPath();
-        ctx.moveTo(centerX - 16, shoulderY + 2);
-        ctx.quadraticCurveTo(centerX, shoulderY + 12, centerX + 16, shoulderY + 2);
-        ctx.strokeStyle = dressAccent;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Dress hem detail (scalloped edge)
-        ctx.strokeStyle = dressAccent + '80';
-        ctx.lineWidth = 1;
-        for (let dx = -dressFlare + 6; dx < dressFlare - 4; dx += 10) {
-          ctx.beginPath();
-          ctx.arc(centerX + dx, dressHemY, 5, Math.PI, Math.PI * 2);
-          ctx.stroke();
-        }
-
-        // 'H' letter on dress chest area
-        const dressLetterY = shoulderY + (waistY - shoulderY) * 0.55;
-        ctx.font = 'bold 20px "Outfit", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'rgba(0,0,0,0.12)';
-        ctx.fillText('H', centerX, dressLetterY + 1);
-        ctx.fillStyle = 'rgba(255,200,220,0.35)';
-        ctx.fillText('H', centerX, dressLetterY);
-
-      } else {
-        // ── Boy: square T-shirt + jeans ──
-        const tshirtColor = '#3a6090';
-        const tshirtHighlight = '#4a78b0';
-        const jeansColor = '#2a3858';
-        const jeansHighlight = '#344870';
-
-        // Legs / jeans
-        const legThick = 8;
-        const lKneeX = centerX - 18, rKneeX = centerX + 18;
-        const lFootX = centerX - 28, rFootX = centerX + 28;
-
-        // Left leg (jeans)
-        ctx.strokeStyle = jeansColor;
-        ctx.lineWidth = legThick;
-        ctx.beginPath();
-        ctx.moveTo(centerX - hipW * 0.5, hipY);
-        ctx.quadraticCurveTo(lKneeX - 4, kneeY, lFootX, footY);
-        ctx.stroke();
-        ctx.strokeStyle = jeansHighlight;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(centerX - hipW * 0.5 + 1, hipY + 2);
-        ctx.quadraticCurveTo(lKneeX - 2, kneeY, lFootX + 1, footY);
-        ctx.stroke();
-
-        // Right leg
-        ctx.strokeStyle = jeansColor;
-        ctx.lineWidth = legThick;
-        ctx.beginPath();
-        ctx.moveTo(centerX + hipW * 0.5, hipY);
-        ctx.quadraticCurveTo(rKneeX + 4, kneeY, rFootX, footY);
-        ctx.stroke();
-        ctx.strokeStyle = jeansHighlight;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(centerX + hipW * 0.5 - 1, hipY + 2);
-        ctx.quadraticCurveTo(rKneeX + 2, kneeY, rFootX - 1, footY);
-        ctx.stroke();
-
-        // Shoes (sneakers)
-        ctx.fillStyle = '#1a1835';
-        ctx.beginPath();
-        ctx.ellipse(lFootX - 2, footY + 2, 13, 6, -0.15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#3b82f6';
-        ctx.beginPath();
-        ctx.ellipse(lFootX - 2, footY, 11, 5, -0.15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.ellipse(lFootX - 7, footY + 1, 4, 2.5, -0.15, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#1a1835';
-        ctx.beginPath();
-        ctx.ellipse(rFootX + 2, footY + 2, 13, 6, 0.15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#3b82f6';
-        ctx.beginPath();
-        ctx.ellipse(rFootX + 2, footY, 11, 5, 0.15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.ellipse(rFootX + 7, footY + 1, 4, 2.5, 0.15, 0, Math.PI * 2);
-        ctx.fill();
-
-        // T-shirt torso (boxy, square cut)
-        const tshirtBottom = hipY + 4;
-        ctx.beginPath();
-        ctx.moveTo(centerX - shoulderW - 2, shoulderY);
-        ctx.lineTo(centerX - shoulderW + 2, tshirtBottom);
-        ctx.lineTo(centerX + shoulderW - 2, tshirtBottom);
-        ctx.lineTo(centerX + shoulderW + 2, shoulderY);
-        ctx.closePath();
-        const tGrad = ctx.createLinearGradient(centerX, shoulderY, centerX, tshirtBottom);
-        tGrad.addColorStop(0, tshirtHighlight);
-        tGrad.addColorStop(0.3, tshirtColor);
-        tGrad.addColorStop(1, shadeColor(tshirtColor, -20));
-        ctx.fillStyle = tGrad;
-        ctx.fill();
-        ctx.strokeStyle = lightenColor(tshirtColor, 15);
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
-
-        // Round neckline
-        ctx.beginPath();
-        ctx.arc(centerX, shoulderY + 2, 12, 0.15 * Math.PI, 0.85 * Math.PI);
-        ctx.strokeStyle = shadeColor(tshirtColor, -30);
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // T-shirt hem
-        ctx.beginPath();
-        ctx.moveTo(centerX - shoulderW + 3, tshirtBottom);
-        ctx.lineTo(centerX + shoulderW - 3, tshirtBottom);
-        ctx.strokeStyle = shadeColor(tshirtColor, -25);
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Subtle fold lines
-        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-        ctx.lineWidth = 0.7;
-        ctx.beginPath();
-        ctx.moveTo(centerX - 10, shoulderY + 15);
-        ctx.quadraticCurveTo(centerX - 8, (shoulderY + tshirtBottom) / 2, centerX - 12, tshirtBottom - 5);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(centerX + 10, shoulderY + 15);
-        ctx.quadraticCurveTo(centerX + 8, (shoulderY + tshirtBottom) / 2, centerX + 12, tshirtBottom - 5);
-        ctx.stroke();
-
-        // 'S' letter on chest
-        const letterY = shoulderY + (tshirtBottom - shoulderY) * 0.45;
-        ctx.font = 'bold 22px "Outfit", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'rgba(255,255,255,0.18)';
-        ctx.fillText('S', centerX, letterY + 1);
-        ctx.fillStyle = 'rgba(200,220,255,0.35)';
-        ctx.fillText('S', centerX, letterY);
-      }
-
-      // Arms
-      const armThick = 5.5;
-      const armColor = isGirl ? '#b0406a' : '#3a6090'; // matches dress/tshirt
-      const armSkin = '#c8a88a';
-
-      const lElbow = { x: centerX - shoulderW - 18, y: shoulderY + 48 };
-      ctx.strokeStyle = armColor;
-      ctx.lineWidth = armThick;
-      ctx.beginPath();
-      ctx.moveTo(centerX - shoulderW, shoulderY + 2);
-      ctx.quadraticCurveTo(lElbow.x + 8, lElbow.y - 10, lElbow.x, lElbow.y);
-      ctx.stroke();
-      ctx.strokeStyle = armSkin;
-      ctx.lineWidth = armThick - 1;
-      ctx.beginPath();
-      ctx.moveTo(lElbow.x, lElbow.y);
-      ctx.quadraticCurveTo(lElbow.x - 5, (lElbow.y + lhy) / 2, lhx, lhy);
-      ctx.stroke();
-
-      const rElbow = { x: centerX + shoulderW + 18, y: shoulderY + 48 };
-      ctx.strokeStyle = armColor;
-      ctx.lineWidth = armThick;
-      ctx.beginPath();
-      ctx.moveTo(centerX + shoulderW, shoulderY + 2);
-      ctx.quadraticCurveTo(rElbow.x - 8, rElbow.y - 10, rElbow.x, rElbow.y);
-      ctx.stroke();
-      ctx.strokeStyle = armSkin;
-      ctx.lineWidth = armThick - 1;
-      ctx.beginPath();
-      ctx.moveTo(rElbow.x, rElbow.y);
-      ctx.quadraticCurveTo(rElbow.x + 5, (rElbow.y + rhy) / 2, rhx, rhy);
-      ctx.stroke();
-
-      // Neck
-      ctx.strokeStyle = armSkin;
-      ctx.lineWidth = 8;
-      ctx.beginPath();
-      ctx.moveTo(centerX, neckY - 2);
-      ctx.lineTo(centerX, shoulderY + 2);
-      ctx.stroke();
-
-      // Head
-      const headGrad = ctx.createRadialGradient(centerX - 4, headY - 6, 2, centerX, headY, headRy);
-      headGrad.addColorStop(0, '#e8c8a8');
-      headGrad.addColorStop(0.7, '#d4a87a');
-      headGrad.addColorStop(1, '#b88a60');
-      ctx.fillStyle = headGrad;
-      ctx.beginPath();
-      ctx.ellipse(centerX, headY, headRx, headRy, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#a07850';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // Hair & headwear — different for boy vs girl
-      if (isGirl) {
-        // ── Girl: longer flowing hair with ponytail ──
-        const hairColor = '#402030';
-        const hairHighlight = '#5a3048';
-
-        // Main hair mass (longer, covers more of head)
-        ctx.fillStyle = hairColor;
-        ctx.beginPath();
-        ctx.ellipse(centerX, headY - 6, headRx + 3, headRy * 0.6, 0, Math.PI, Math.PI * 2);
-        ctx.fill();
-
-        // Side hair flowing down (longer than boy)
-        ctx.beginPath();
-        ctx.ellipse(centerX - headRx - 2, headY + 2, 4, 16, 0.15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(centerX + headRx + 2, headY + 2, 4, 16, -0.15, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Ponytail (flowing to one side)
-        ctx.beginPath();
-        ctx.moveTo(centerX + headRx - 2, headY - headRy + 6);
-        ctx.quadraticCurveTo(centerX + headRx + 18, headY - 20, centerX + headRx + 22, headY - 5);
-        ctx.quadraticCurveTo(centerX + headRx + 24, headY + 8, centerX + headRx + 16, headY + 15);
-        ctx.quadraticCurveTo(centerX + headRx + 10, headY + 5, centerX + headRx + 2, headY - 2);
-        ctx.closePath();
-        ctx.fillStyle = hairColor;
-        ctx.fill();
-
-        // Hair highlight streak
-        ctx.strokeStyle = hairHighlight;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(centerX - 4, headY - headRy + 5);
-        ctx.quadraticCurveTo(centerX + 6, headY - headRy + 2, centerX + headRx - 2, headY - headRy + 8);
-        ctx.stroke();
-
-        // Hair tie (scrunchie)
-        ctx.fillStyle = '#e74c3c';
-        ctx.beginPath();
-        ctx.ellipse(centerX + headRx + 2, headY - headRy + 8, 4, 3, 0.3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#c0392b';
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
-
-        // ── Bow on top ──
-        const bowX = centerX - 6, bowY = headY - headRy - 2;
-        const bowColor = '#f472b6';
-        // Left loop
-        ctx.beginPath();
-        ctx.moveTo(bowX, bowY);
-        ctx.quadraticCurveTo(bowX - 12, bowY - 8, bowX - 10, bowY + 2);
-        ctx.quadraticCurveTo(bowX - 6, bowY + 5, bowX, bowY);
-        ctx.closePath();
-        ctx.fillStyle = bowColor;
-        ctx.fill();
-        // Right loop
-        ctx.beginPath();
-        ctx.moveTo(bowX, bowY);
-        ctx.quadraticCurveTo(bowX + 12, bowY - 8, bowX + 10, bowY + 2);
-        ctx.quadraticCurveTo(bowX + 6, bowY + 5, bowX, bowY);
-        ctx.closePath();
-        ctx.fill();
-        // Center knot
-        ctx.fillStyle = '#ec4899';
-        ctx.beginPath();
-        ctx.arc(bowX, bowY + 1, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-
-      } else {
-        // ── Boy: short hair + jester hat (original) ──
-        const hairColor = '#2a2040';
-        ctx.fillStyle = hairColor;
-        ctx.beginPath();
-        ctx.ellipse(centerX, headY - 8, headRx + 2, headRy * 0.5, 0, Math.PI, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(centerX - headRx - 1, headY - 3, 3, 10, 0.1, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(centerX + headRx + 1, headY - 3, 3, 10, -0.1, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Jester hat
-        const hatBaseY = headY - headRy + 2;
-        const hatColors = ['#e74c3c', '#f1c40f', '#2ecc71'];
-        ctx.fillStyle = '#8b5cf6';
-        ctx.beginPath();
-        ctx.ellipse(centerX, hatBaseY + 2, headRx + 8, 5, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#6d28d9';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        const prongs = [
-          { cx: centerX - 20, cy: hatBaseY - 30, color: hatColors[0], angle: -0.4 },
-          { cx: centerX, cy: hatBaseY - 38, color: hatColors[1], angle: 0 },
-          { cx: centerX + 20, cy: hatBaseY - 30, color: hatColors[2], angle: 0.4 },
-        ];
-        for (const p of prongs) {
-          ctx.beginPath();
-          ctx.moveTo(centerX - 6 + (p.cx - centerX) * 0.3, hatBaseY);
-          ctx.quadraticCurveTo(p.cx + Math.sin(p.angle) * 8, (hatBaseY + p.cy) / 2, p.cx, p.cy);
-          ctx.quadraticCurveTo(p.cx - Math.sin(p.angle) * 8, (hatBaseY + p.cy) / 2, centerX + 6 + (p.cx - centerX) * 0.3, hatBaseY);
-          ctx.closePath();
-          const pGrad = ctx.createLinearGradient(p.cx, hatBaseY, p.cx, p.cy);
-          pGrad.addColorStop(0, '#8b5cf6');
-          pGrad.addColorStop(0.4, p.color);
-          pGrad.addColorStop(1, p.color);
-          ctx.fillStyle = pGrad;
-          ctx.fill();
-          ctx.strokeStyle = shadeColor(p.color, -30);
-          ctx.lineWidth = 0.8;
-          ctx.stroke();
-
-          ctx.fillStyle = '#fbbf24';
-          ctx.beginPath();
-          ctx.arc(p.cx, p.cy, 4, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#d4a00a';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-          ctx.fillStyle = 'rgba(255,255,255,0.5)';
-          ctx.beginPath();
-          ctx.arc(p.cx - 1, p.cy - 1.5, 1.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      // Eyes
-      const pupilOffsetX = isGirl ? -1.5 : 1.5;
-
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.ellipse(centerX - 6, headY - 2, 3.5, 2.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(centerX + 6, headY - 2, 3.5, 2.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Pupils
-      ctx.fillStyle = isGirl ? '#1a1028' : '#1a1030';
-      ctx.beginPath();
-      ctx.arc(centerX - 6 + (sim.passing ? pupilOffsetX : 0), headY - 3, 1.8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(centerX + 6 + (sim.passing ? pupilOffsetX : 0), headY - 3, 1.8, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Eye shine
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.beginPath();
-      ctx.arc(centerX - 5, headY - 3.5, 0.7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(centerX + 7, headY - 3.5, 0.7, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Girl: eyelashes
-      if (isGirl) {
-        ctx.strokeStyle = '#2a1830';
-        ctx.lineWidth = 1;
-        // Left eye lashes
-        ctx.beginPath();
-        ctx.moveTo(centerX - 9, headY - 4);
-        ctx.lineTo(centerX - 10.5, headY - 6.5);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(centerX - 7, headY - 4.5);
-        ctx.lineTo(centerX - 7.5, headY - 7);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(centerX - 4, headY - 4);
-        ctx.lineTo(centerX - 3.5, headY - 6.5);
-        ctx.stroke();
-        // Right eye lashes
-        ctx.beginPath();
-        ctx.moveTo(centerX + 3, headY - 4);
-        ctx.lineTo(centerX + 2.5, headY - 6.5);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(centerX + 5.5, headY - 4.5);
-        ctx.lineTo(centerX + 5.5, headY - 7);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(centerX + 8, headY - 4);
-        ctx.lineTo(centerX + 9.5, headY - 6.5);
-        ctx.stroke();
-      }
-
-      // Smile — girl has rosier lips
-      if (isGirl) {
-        ctx.strokeStyle = '#c06060';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(centerX, headY + 3, 4.5, 0.15 * Math.PI, 0.85 * Math.PI);
-        ctx.stroke();
-        // Small lip highlight
-        ctx.fillStyle = 'rgba(220, 120, 130, 0.4)';
-        ctx.beginPath();
-        ctx.ellipse(centerX, headY + 5.5, 3.5, 1.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        ctx.strokeStyle = '#9a7050';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.arc(centerX, headY + 3, 5, 0.15 * Math.PI, 0.85 * Math.PI);
-        ctx.stroke();
-      }
-
-      // Girl: subtle blush
-      if (isGirl) {
-        ctx.fillStyle = 'rgba(240, 140, 160, 0.12)';
-        ctx.beginPath();
-        ctx.ellipse(centerX - 10, headY + 1, 5, 3, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(centerX + 10, headY + 1, 5, 3, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Hands
-      const drawHand = (hx, hy, tiltDir) => {
-        const hGlow = ctx.createRadialGradient(hx, hy, 0, hx, hy, 18);
-        hGlow.addColorStop(0, 'rgba(168, 158, 255, 0.25)');
-        hGlow.addColorStop(1, 'rgba(168, 158, 255, 0)');
-        ctx.fillStyle = hGlow;
-        ctx.beginPath();
-        ctx.arc(hx, hy, 18, 0, Math.PI * 2);
-        ctx.fill();
-
-        const hGrad = ctx.createRadialGradient(hx + tiltDir, hy - 1, 0, hx, hy, 9);
-        hGrad.addColorStop(0, '#e8c8a8');
-        hGrad.addColorStop(1, '#c8a080');
-        ctx.fillStyle = hGrad;
-        ctx.beginPath();
-        ctx.ellipse(hx, hy, 8, 6, tiltDir * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#a58060';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      };
-
-      drawHand(lhx, lhy, -1);
-      drawHand(rhx, rhy, 1);
-
-      ctx.restore();
-    }
-
-    // ─── CLUB DRAWING ─────────────────────────────────────────────────
-
-    let currentPropType = 'balls';
-
-    function getClubRotations(throwValue) {
-      return clubSpinCount;
-    }
-
-    function drawClub(ctx, ball) {
-      ctx.save();
-      ctx.translate(ball.x, ball.y);
-
-      let angle = Math.PI / 2;
-      if (ball.airFrac > 0 && ball.airFrac <= 1) {
-        const rotations = getClubRotations(ball.throwValue);
-        angle = ball.airFrac * rotations * Math.PI * 2;
-      } else if (ball.airFrac === -1) {
-        angle = -Math.PI * 0.1;
-      }
-
-      ctx.rotate(angle);
-
-      const clubLen = 36;
-      const handleLen = 14;
-      const bodyTopW = 4;
-      const bodyBotW = 10;
-      const handleW = 3;
-
-      ctx.fillStyle = hexAlpha(ball.color, 0x25);
-      ctx.beginPath();
-      ctx.ellipse(0, -clubLen * 0.3, 12, clubLen * 0.6, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = '#d4c8a0';
-      ctx.lineWidth = handleW;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(0, handleLen);
-      ctx.lineTo(0, 2);
-      ctx.stroke();
-
-      ctx.fillStyle = '#e8d8b0';
-      ctx.beginPath();
-      ctx.arc(0, handleLen + 2, 3, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.moveTo(-bodyTopW / 2, 0);
-      ctx.quadraticCurveTo(-bodyBotW / 2 - 1, -clubLen * 0.4, -bodyBotW / 2, -clubLen * 0.6);
-      ctx.quadraticCurveTo(-bodyBotW / 2 + 1, -clubLen * 0.85, 0, -clubLen);
-      ctx.quadraticCurveTo(bodyBotW / 2 - 1, -clubLen * 0.85, bodyBotW / 2, -clubLen * 0.6);
-      ctx.quadraticCurveTo(bodyBotW / 2 + 1, -clubLen * 0.4, bodyTopW / 2, 0);
-      ctx.closePath();
-
-      const bodyGrad = ctx.createLinearGradient(-bodyBotW, 0, bodyBotW, -clubLen);
-      bodyGrad.addColorStop(0, ball.color);
-      bodyGrad.addColorStop(0.5, lightenColor(ball.color, 25));
-      bodyGrad.addColorStop(1, ball.color);
-      ctx.fillStyle = bodyGrad;
-      ctx.fill();
-      ctx.strokeStyle = shadeColor(ball.color, -40);
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      ctx.strokeStyle = 'rgba(255,255,255,0.251)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(-bodyBotW / 2 + 2, -clubLen * 0.5);
-      ctx.lineTo(bodyBotW / 2 - 2, -clubLen * 0.5);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(-bodyBotW / 2 + 3, -clubLen * 0.55);
-      ctx.lineTo(bodyBotW / 2 - 3, -clubLen * 0.55);
-      ctx.stroke();
-
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.beginPath();
-      ctx.ellipse(-1, -clubLen * 0.7, 2, 5, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.restore();
+    // ─── UTILITY ──────────────────────────────────────────────────────
+
+    function hexAlpha(hex, alpha) {
+      var num = parseInt(hex.replace('#', ''), 16);
+      var r = (num >> 16) & 255;
+      var g = (num >> 8) & 255;
+      var b = num & 255;
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha / 255).toFixed(3) + ')';
     }
 
     function shadeColor(color, percent) {
@@ -2558,6 +1867,1806 @@
       return shadeColor(color, percent);
     }
 
+    function hexToThreeColor(hex) {
+      return new THREE.Color(hex);
+    }
+
+    // ─── 2D → 3D COORDINATE MAPPING ──────────────────────────────────
+    // Map 2D pixel coords (0..920, 0..700) to 3D world coords
+    // X: 0..920 → -4.6..4.6 (centered)
+    // Y: 0..700 (top=0=high) → height (up is positive Y in 3D)
+    // Z: 0 (juggling plane)
+
+    const SCALE_2D_TO_3D = 0.01; // 1 pixel = 0.01 world units
+    const OFFSET_X = W / 2;      // center X
+    const GROUND_Y_2D = 640;     // approximate foot level in 2D
+
+    function map2Dto3D(px, py) {
+      const x = (px - OFFSET_X) * SCALE_2D_TO_3D;
+      const y = (GROUND_Y_2D - py) * SCALE_2D_TO_3D;
+      return { x, y, z: 0 };
+    }
+
+    // ─── THREE.JS SCENE SETUP ─────────────────────────────────────────
+
+    const canvasWrapper = document.getElementById('canvasWrapper');
+
+    const scene = new THREE.Scene();
+
+    // Dark space background
+    scene.background = new THREE.Color('#08081a');
+    // Gentle fog for depth — dark space feel
+    scene.fog = new THREE.Fog('#08081a', 20, 55);
+
+    // Camera
+    const aspect = W / H;
+    const camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 100);
+    const defaultCamPos = new THREE.Vector3(0, 2.0, 8.5);
+    const defaultCamTarget = new THREE.Vector3(0, 1.5, 0);
+    camera.position.copy(defaultCamPos);
+    camera.lookAt(defaultCamTarget);
+
+    // Renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(W, H);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.7;
+    const rendererCanvas = renderer.domElement;
+    rendererCanvas.style.display = 'block';
+    rendererCanvas.style.width = '100%';
+    rendererCanvas.style.height = 'auto';
+    canvasWrapper.insertBefore(rendererCanvas, canvasWrapper.firstChild);
+
+    // ─── LIGHTS ───────────────────────────────────────────────────────
+
+    // Ambient for base illumination
+    const ambientLight = new THREE.AmbientLight(0x8888aa, 0.7);
+    scene.add(ambientLight);
+
+    // Main key light — warm, from upper-right-front
+    const dirLight = new THREE.DirectionalLight(0xfff0dd, 1.4);
+    dirLight.position.set(4, 10, 6);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 4096;
+    dirLight.shadow.mapSize.height = 4096;
+    dirLight.shadow.camera.near = 0.1;
+    dirLight.shadow.camera.far = 40;
+    dirLight.shadow.camera.left = -12;
+    dirLight.shadow.camera.right = 12;
+    dirLight.shadow.camera.top = 10;
+    dirLight.shadow.camera.bottom = -2;
+    dirLight.shadow.bias = -0.0005;
+    dirLight.shadow.normalBias = 0.02;
+    dirLight.shadow.radius = 3;
+    scene.add(dirLight);
+
+    // Cool fill from left — theatrical blue
+    const fillLight = new THREE.DirectionalLight(0x6688ff, 0.55);
+    fillLight.position.set(-5, 6, 2);
+    scene.add(fillLight);
+
+    // Warm fill from right
+    const warmFill = new THREE.DirectionalLight(0xffaa66, 0.25);
+    warmFill.position.set(5, 3, 1);
+    scene.add(warmFill);
+
+    // Back fill for silhouette prevention
+    const backFill = new THREE.DirectionalLight(0x5566aa, 0.4);
+    backFill.position.set(0, 4, -7);
+    scene.add(backFill);
+
+    // Hemisphere — sky/ground color bleeding
+    const hemiLight = new THREE.HemisphereLight(0x99aadd, 0x1a1a33, 0.55);
+    scene.add(hemiLight);
+
+    // Animated rim/accent light — purple glow
+    const rimLight = new THREE.PointLight(0x9977ff, 0.6, 30);
+    rimLight.position.set(0, 5, -3);
+    scene.add(rimLight);
+
+    // Stage spotlight — warm pool on performers
+    const spotLight = new THREE.PointLight(0xffe8cc, 0.45, 15);
+    spotLight.position.set(0, 6, 0);
+    scene.add(spotLight);
+
+    // ─── GRID FLOOR ──────────────────────────────────────────────────
+
+    // Matte dark floor — no reflections
+    const floorGeom = new THREE.PlaneGeometry(30, 30);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x0c0c22,
+      roughness: 0.95,
+      metalness: 0.0
+    });
+    const floor = new THREE.Mesh(floorGeom, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.01;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Subtle grid lines
+    const gridHelper = new THREE.GridHelper(20, 40, 0x25254a, 0x18183a);
+    gridHelper.position.y = 0;
+    gridHelper.material.opacity = 0.3;
+    gridHelper.material.transparent = true;
+    scene.add(gridHelper);
+
+    // ─── AMBIENT FLOATING PARTICLES ─────────────────────────────────
+    const ambientParticleCount = 80;
+    const ambientParticleGeo = new THREE.BufferGeometry();
+    const ambientPositions = new Float32Array(ambientParticleCount * 3);
+    const ambientSizes = new Float32Array(ambientParticleCount);
+    const ambientSpeeds = new Float32Array(ambientParticleCount);
+    for (let i = 0; i < ambientParticleCount; i++) {
+      ambientPositions[i * 3] = (Math.random() - 0.5) * 16;
+      ambientPositions[i * 3 + 1] = Math.random() * 8;
+      ambientPositions[i * 3 + 2] = (Math.random() - 0.5) * 12;
+      ambientSizes[i] = 0.02 + Math.random() * 0.04;
+      ambientSpeeds[i] = 0.002 + Math.random() * 0.004;
+    }
+    ambientParticleGeo.setAttribute('position', new THREE.BufferAttribute(ambientPositions, 3));
+    ambientParticleGeo.setAttribute('size', new THREE.BufferAttribute(ambientSizes, 1));
+    const ambientParticleMat = new THREE.PointsMaterial({
+      color: 0x8877cc,
+      size: 0.04,
+      transparent: true,
+      opacity: 0.35,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      sizeAttenuation: true
+    });
+    const ambientParticles = new THREE.Points(ambientParticleGeo, ambientParticleMat);
+    scene.add(ambientParticles);
+
+    function updateAmbientParticles(time) {
+      const pos = ambientParticleGeo.attributes.position.array;
+      for (let i = 0; i < ambientParticleCount; i++) {
+        const idx = i * 3;
+        pos[idx + 1] += ambientSpeeds[i];
+        pos[idx] += Math.sin(time * 0.5 + i) * 0.001;
+        pos[idx + 2] += Math.cos(time * 0.3 + i * 0.7) * 0.0008;
+        if (pos[idx + 1] > 8) {
+          pos[idx + 1] = 0;
+          pos[idx] = (Math.random() - 0.5) * 16;
+          pos[idx + 2] = (Math.random() - 0.5) * 12;
+        }
+      }
+      ambientParticleGeo.attributes.position.needsUpdate = true;
+    }
+
+    // ─── 3D JUGGLER BUILDER ─────────────────────────────────────────
+
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xe8c0a0, roughness: 0.4, metalness: 0.02, emissive: 0xe8c0a0, emissiveIntensity: 0.03 });
+    const skinMatDark = new THREE.MeshStandardMaterial({ color: 0xd8b090, roughness: 0.45, metalness: 0.02, emissive: 0xd8b090, emissiveIntensity: 0.02 });
+
+    function createTextTexture(letter, bgColor, textColor, size) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const c = canvas.getContext('2d');
+      c.fillStyle = bgColor;
+      c.fillRect(0, 0, size, size);
+      c.fillStyle = textColor;
+      c.font = `bold ${size * 0.5}px "Outfit", sans-serif`;
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(letter, size / 2, size / 2);
+      const tex = new THREE.CanvasTexture(canvas);
+      return tex;
+    }
+
+    function createJugglerGroup(gender) {
+      const group = new THREE.Group();
+      const isGirl = gender === 'girl';
+
+      // -- Head --
+      // Boy gets a slightly blockier head (lower poly), girl stays rounder
+      const headSegments = isGirl ? 16 : 8;
+      const headGeom = isGirl
+        ? new THREE.SphereGeometry(0.2, 16, 12)
+        : new THREE.BoxGeometry(0.36, 0.4, 0.34);
+      const headMesh = new THREE.Mesh(headGeom, skinMat);
+      headMesh.position.y = 1.65;
+      if (isGirl) headMesh.scale.set(1, 1.15, 0.95);
+      headMesh.castShadow = true;
+      group.add(headMesh);
+
+      // -- Hair --
+      const hairColor = isGirl ? 0x402030 : 0x2a2040;
+      const hairMat = new THREE.MeshPhongMaterial({ color: hairColor, shininess: 25, specular: 0x332244 });
+
+      if (isGirl) {
+        // Fuller hair on top
+        const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat);
+        hairTop.position.y = 1.72;
+        hairTop.scale.set(1.05, 1, 1);
+        group.add(hairTop);
+
+        // Side hair left
+        const sideL = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), hairMat);
+        sideL.position.set(-0.22, 1.6, 0);
+        sideL.scale.set(0.7, 2.2, 0.8);
+        group.add(sideL);
+        // Side hair right
+        const sideR = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), hairMat);
+        sideR.position.set(0.22, 1.6, 0);
+        sideR.scale.set(0.7, 2.2, 0.8);
+        group.add(sideR);
+
+        // Ponytail
+        const ponyGeom = new THREE.SphereGeometry(0.1, 8, 6);
+        const pony = new THREE.Mesh(ponyGeom, hairMat);
+        pony.position.set(0.2, 1.72, -0.15);
+        pony.scale.set(0.8, 1.5, 0.8);
+        pony.rotation.z = -0.4;
+        group.add(pony);
+
+        // Scrunchie
+        const scrunchie = new THREE.Mesh(
+          new THREE.TorusGeometry(0.04, 0.015, 8, 12),
+          new THREE.MeshPhongMaterial({ color: 0xe74c3c })
+        );
+        scrunchie.position.set(0.2, 1.82, -0.12);
+        scrunchie.rotation.x = Math.PI / 3;
+        group.add(scrunchie);
+
+        // Bow on top
+        const bowMat = new THREE.MeshPhongMaterial({ color: 0xf472b6, shininess: 30 });
+        const bowL = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), bowMat);
+        bowL.position.set(-0.06, 1.88, 0.05);
+        bowL.scale.set(1.5, 0.6, 0.8);
+        group.add(bowL);
+        const bowR = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), bowMat);
+        bowR.position.set(0.06, 1.88, 0.05);
+        bowR.scale.set(1.5, 0.6, 0.8);
+        group.add(bowR);
+        const bowKnot = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), new THREE.MeshPhongMaterial({ color: 0xec4899 }));
+        bowKnot.position.set(0, 1.87, 0.06);
+        group.add(bowKnot);
+      } else {
+        // Boy short hair
+        const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.21, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), hairMat);
+        hairTop.position.y = 1.7;
+        group.add(hairTop);
+        // Side hair
+        const sideL = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 4), hairMat);
+        sideL.position.set(-0.21, 1.62, 0);
+        sideL.scale.set(0.6, 1.5, 0.7);
+        group.add(sideL);
+        const sideR = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 4), hairMat);
+        sideR.position.set(0.21, 1.62, 0);
+        sideR.scale.set(0.6, 1.5, 0.7);
+        group.add(sideR);
+
+        // Jester hat
+        const hatBaseMat = new THREE.MeshPhongMaterial({ color: 0x8b5cf6, shininess: 40 });
+        const hatBase = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 8, 16), hatBaseMat);
+        hatBase.position.y = 1.83;
+        hatBase.rotation.x = Math.PI / 2;
+        group.add(hatBase);
+
+        const prongColors = [0xe74c3c, 0xf1c40f, 0x2ecc71];
+        const prongAngles = [-0.4, 0, 0.4];
+        const prongTips = [
+          { x: -0.18, y: 2.12 },
+          { x: 0, y: 2.2 },
+          { x: 0.18, y: 2.12 }
+        ];
+        for (let i = 0; i < 3; i++) {
+          const prongGeom = new THREE.ConeGeometry(0.06, 0.35, 8);
+          const prongMat = new THREE.MeshPhongMaterial({ color: prongColors[i], shininess: 30 });
+          const prong = new THREE.Mesh(prongGeom, prongMat);
+          prong.position.set(prongTips[i].x, prongTips[i].y - 0.15, 0.02);
+          prong.rotation.z = -prongAngles[i];
+          group.add(prong);
+
+          // Bell
+          const bellGeom = new THREE.SphereGeometry(0.035, 8, 6);
+          const bellMat = new THREE.MeshPhongMaterial({ color: 0xfbbf24, shininess: 60 });
+          const bell = new THREE.Mesh(bellGeom, bellMat);
+          bell.position.set(prongTips[i].x, prongTips[i].y + 0.02, 0.02);
+          group.add(bell);
+        }
+      }
+
+      // -- Eyes --
+      const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, emissive: 0xffffff, emissiveIntensity: 0.08 });
+      const pupilMat = new THREE.MeshStandardMaterial({ color: 0x1a1030, roughness: 0.2 });
+      const irisMat = new THREE.MeshStandardMaterial({
+        color: isGirl ? 0x4a7a44 : 0x3a5a8a,
+        roughness: 0.2,
+        metalness: 0.1
+      });
+
+      // Eye positions adjust for box head vs sphere head
+      const eyeZ = isGirl ? 0.18 : 0.175;
+      const eyeSpread = isGirl ? 0.065 : 0.075;
+      const eyeY = isGirl ? 1.67 : 1.67;
+
+      const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.042, 12, 8), eyeWhiteMat);
+      eyeL.position.set(-eyeSpread, eyeY, eyeZ);
+      eyeL.scale.set(1, 0.8, 0.5);
+      group.add(eyeL);
+      const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.042, 12, 8), eyeWhiteMat);
+      eyeR.position.set(eyeSpread, eyeY, eyeZ);
+      eyeR.scale.set(1, 0.8, 0.5);
+      group.add(eyeR);
+
+      // Iris (colored ring around pupil)
+      const irisL = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), irisMat);
+      irisL.position.set(-eyeSpread, eyeY + 0.003, eyeZ + 0.02);
+      group.add(irisL);
+      const irisR = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), irisMat);
+      irisR.position.set(eyeSpread, eyeY + 0.003, eyeZ + 0.02);
+      group.add(irisR);
+
+      // Pupils
+      const pupilL = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 6), pupilMat);
+      pupilL.position.set(-eyeSpread, eyeY + 0.005, eyeZ + 0.03);
+      group.add(pupilL);
+      const pupilR = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 6), pupilMat);
+      pupilR.position.set(eyeSpread, eyeY + 0.005, eyeZ + 0.03);
+      group.add(pupilR);
+
+      // Eye shine (bright white dot)
+      const shineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const shineL = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), shineMat);
+      shineL.position.set(-eyeSpread + 0.012, eyeY + 0.01, eyeZ + 0.035);
+      group.add(shineL);
+      const shineR = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), shineMat);
+      shineR.position.set(eyeSpread + 0.012, eyeY + 0.01, eyeZ + 0.035);
+      group.add(shineR);
+
+      // Eyelashes for girl
+      if (isGirl) {
+        const lashMat = new THREE.MeshBasicMaterial({ color: 0x2a1830 });
+        for (let side = -1; side <= 1; side += 2) {
+          for (let j = -1; j <= 1; j++) {
+            const lash = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.001, 0.04, 4), lashMat);
+            lash.position.set(side * eyeSpread + j * 0.02, eyeY + 0.03, eyeZ + 0.01);
+            lash.rotation.z = side * 0.2 + j * 0.15;
+            group.add(lash);
+          }
+        }
+        // Blush (rosy cheeks)
+        const blushMat = new THREE.MeshStandardMaterial({ color: 0xf08ca0, transparent: true, opacity: 0.4, roughness: 0.5, emissive: 0xf08ca0, emissiveIntensity: 0.05 });
+        const blushL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), blushMat);
+        blushL.position.set(-0.12, 1.63, 0.14);
+        blushL.scale.set(1.2, 0.7, 0.3);
+        group.add(blushL);
+        const blushR = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), blushMat);
+        blushR.position.set(0.12, 1.63, 0.14);
+        blushR.scale.set(1.2, 0.7, 0.3);
+        group.add(blushR);
+      }
+
+      // Nose
+      const noseMat = new THREE.MeshStandardMaterial({ color: 0xd0a070, roughness: 0.5 });
+      if (isGirl) {
+        // Small cute nose
+        const nose = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), noseMat);
+        nose.position.set(0, 1.635, 0.2);
+        nose.scale.set(0.7, 0.8, 0.6);
+        group.add(nose);
+      } else {
+        // Slightly blockier nose for boy
+        const nose = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.025), noseMat);
+        nose.position.set(0, 1.63, 0.185);
+        group.add(nose);
+      }
+
+      // Ears
+      const earMat = new THREE.MeshStandardMaterial({ color: 0xd8a880, roughness: 0.45, metalness: 0.02 });
+      const earGeom = isGirl ? new THREE.SphereGeometry(0.035, 8, 6) : new THREE.BoxGeometry(0.04, 0.06, 0.03);
+      const earSpreadX = isGirl ? 0.2 : 0.19;
+      const earL = new THREE.Mesh(earGeom, earMat);
+      earL.position.set(-earSpreadX, 1.64, 0);
+      if (isGirl) earL.scale.set(0.5, 0.9, 0.6);
+      group.add(earL);
+      const earR = new THREE.Mesh(earGeom.clone ? earGeom.clone() : earGeom, earMat);
+      earR.position.set(earSpreadX, 1.64, 0);
+      if (isGirl) earR.scale.set(0.5, 0.9, 0.6);
+      group.add(earR);
+
+      // Girl earrings
+      if (isGirl) {
+        const earringMat = new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 90 });
+        const earringGeom = new THREE.SphereGeometry(0.015, 8, 6);
+        const earringL = new THREE.Mesh(earringGeom, earringMat);
+        earringL.position.set(-0.21, 1.6, 0.01);
+        group.add(earringL);
+        const earringR = new THREE.Mesh(earringGeom, earringMat);
+        earringR.position.set(0.21, 1.6, 0.01);
+        group.add(earringR);
+      }
+
+      // Eyebrows (both genders — adds expressiveness)
+      const browMat = new THREE.MeshStandardMaterial({ color: isGirl ? 0x402030 : 0x2a2040, roughness: 0.6 });
+      const browGeomL = new THREE.BoxGeometry(0.04, 0.008, 0.01);
+      const browL = new THREE.Mesh(browGeomL, browMat);
+      browL.position.set(-eyeSpread, eyeY + 0.04, eyeZ + 0.01);
+      browL.rotation.z = 0.12;
+      group.add(browL);
+      const browR = new THREE.Mesh(browGeomL.clone(), browMat);
+      browR.position.set(eyeSpread, eyeY + 0.04, eyeZ + 0.01);
+      browR.rotation.z = -0.12;
+      group.add(browR);
+
+      // -- Smile -- big and happy!
+      const smileFrontZ = isGirl ? 0.19 : 0.175; // girl sphere head protrudes more, boy box head front face
+      const smileY = isGirl ? 1.585 : 1.58;
+
+      if (isGirl) {
+        // Girl: fuller lips + bright smile
+        const smileMat = new THREE.MeshStandardMaterial({ color: 0xd05060, roughness: 0.3, emissive: 0xd05060, emissiveIntensity: 0.08 });
+        const smileGeom = new THREE.TorusGeometry(0.05, 0.01, 8, 16, Math.PI * 0.75);
+        const smile = new THREE.Mesh(smileGeom, smileMat);
+        smile.position.set(0, smileY, smileFrontZ);
+        smile.rotation.z = Math.PI * 0.12;
+        group.add(smile);
+
+        // Upper lip
+        const upperLipMat = new THREE.MeshStandardMaterial({ color: 0xcc5565, roughness: 0.35 });
+        const upperLip = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.007, 6, 12, Math.PI * 0.8), upperLipMat);
+        upperLip.position.set(0, smileY + 0.02, smileFrontZ + 0.005);
+        upperLip.rotation.z = Math.PI + Math.PI * 0.1;
+        group.add(upperLip);
+
+        // Lower lip (fuller)
+        const lowerLipMat = new THREE.MeshStandardMaterial({ color: 0xe06070, roughness: 0.3 });
+        const lowerLip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), lowerLipMat);
+        lowerLip.position.set(0, smileY - 0.012, smileFrontZ + 0.005);
+        lowerLip.scale.set(1.6, 0.45, 0.35);
+        group.add(lowerLip);
+
+        // Teeth (white strip showing through smile)
+        const teethMat = new THREE.MeshStandardMaterial({ color: 0xfff8f0, roughness: 0.3 });
+        const teeth = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.015), teethMat);
+        teeth.position.set(0, smileY + 0.003, smileFrontZ + 0.008);
+        group.add(teeth);
+      } else {
+        // Boy: wide happy grin
+        const smileMat = new THREE.MeshStandardMaterial({ color: 0x9a7050, roughness: 0.5 });
+        const smileGeom = new THREE.TorusGeometry(0.055, 0.012, 8, 16, Math.PI * 0.75);
+        const smile = new THREE.Mesh(smileGeom, smileMat);
+        smile.position.set(0, smileY, smileFrontZ);
+        smile.rotation.z = Math.PI * 0.12;
+        group.add(smile);
+
+        // Teeth strip
+        const teethMat = new THREE.MeshStandardMaterial({ color: 0xfff8f0, roughness: 0.3 });
+        const teeth = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.018), teethMat);
+        teeth.position.set(0, smileY + 0.005, smileFrontZ + 0.008);
+        group.add(teeth);
+      }
+
+      // -- Neck --
+      const neckGeom = new THREE.CylinderGeometry(0.065, 0.075, 0.1, 10);
+      const neck = new THREE.Mesh(neckGeom, skinMat);
+      neck.position.y = 1.48;
+      group.add(neck);
+
+      // -- Torso --
+      if (isGirl) {
+        // Dress: cone/tapered cylinder flaring at bottom
+        const dressColor1 = 0xb0406a;
+        const dressMat = new THREE.MeshStandardMaterial({
+          color: dressColor1,
+          roughness: 0.38,
+          metalness: 0.08,
+          emissive: new THREE.Color(dressColor1),
+          emissiveIntensity: 0.04
+        });
+        const dressGeom = new THREE.CylinderGeometry(0.22, 0.38, 0.7, 24);
+        const dress = new THREE.Mesh(dressGeom, dressMat);
+        dress.position.y = 1.07;
+        dress.castShadow = true;
+        group.add(dress);
+
+        // 'H' letter on the FRONT of the dress — opaque decal
+        const hCanvas = document.createElement('canvas');
+        hCanvas.width = 128; hCanvas.height = 128;
+        const hc = hCanvas.getContext('2d');
+        // Transparent background
+        hc.clearRect(0, 0, 128, 128);
+        // Bold white-pink letter
+        hc.fillStyle = '#ffd0e0';
+        hc.font = 'bold 72px "Outfit", sans-serif';
+        hc.textAlign = 'center';
+        hc.textBaseline = 'middle';
+        hc.fillText('H', 64, 64);
+        // Subtle outline for contrast
+        hc.strokeStyle = 'rgba(255,255,255,0.5)';
+        hc.lineWidth = 2;
+        hc.strokeText('H', 64, 64);
+        const hTex = new THREE.CanvasTexture(hCanvas);
+        const hLetterMat = new THREE.MeshBasicMaterial({
+          map: hTex,
+          transparent: true,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        });
+        const hLetterGeom = new THREE.PlaneGeometry(0.22, 0.24);
+        const hLetter = new THREE.Mesh(hLetterGeom, hLetterMat);
+        // Position well in front of the dress surface (dress radius ~0.28 at chest height)
+        hLetter.position.set(0, 1.18, 0.32);
+        group.add(hLetter);
+
+        // Waist ribbon
+        const ribbonMat = new THREE.MeshPhongMaterial({ color: 0xd4608a, shininess: 30 });
+        const ribbon = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.02, 6, 16), ribbonMat);
+        ribbon.position.y = 1.2;
+        ribbon.rotation.x = Math.PI / 2;
+        group.add(ribbon);
+
+        // Small bow at waist
+        const wBowMat = new THREE.MeshPhongMaterial({ color: 0xe06888 });
+        const wBowL = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), wBowMat);
+        wBowL.position.set(-0.04, 1.2, 0.24);
+        wBowL.scale.set(1.5, 0.7, 0.5);
+        group.add(wBowL);
+        const wBowR = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), wBowMat);
+        wBowR.position.set(0.04, 1.2, 0.24);
+        wBowR.scale.set(1.5, 0.7, 0.5);
+        group.add(wBowR);
+
+        // Legs (skin below dress) — upper + lower with knee
+        const legMat = new THREE.MeshStandardMaterial({ color: 0xd0aa90, roughness: 0.42, emissive: 0xd0aa90, emissiveIntensity: 0.02 });
+        // Upper legs
+        const upperLegGeomG = new THREE.CylinderGeometry(0.042, 0.038, 0.22, 10);
+        const ulLg = new THREE.Mesh(upperLegGeomG, legMat);
+        ulLg.position.set(-0.12, 0.56, 0);
+        ulLg.castShadow = true;
+        group.add(ulLg);
+        const ulRg = new THREE.Mesh(upperLegGeomG, legMat);
+        ulRg.position.set(0.12, 0.56, 0);
+        ulRg.castShadow = true;
+        group.add(ulRg);
+        // Knees
+        const kneeMat = new THREE.MeshStandardMaterial({ color: 0xc8a488, roughness: 0.45 });
+        const kneeGeom = new THREE.SphereGeometry(0.032, 8, 6);
+        const kneeL = new THREE.Mesh(kneeGeom, kneeMat);
+        kneeL.position.set(-0.12, 0.44, 0.01);
+        group.add(kneeL);
+        const kneeR = new THREE.Mesh(kneeGeom, kneeMat);
+        kneeR.position.set(0.12, 0.44, 0.01);
+        group.add(kneeR);
+        // Lower legs
+        const lowerLegGeomG = new THREE.CylinderGeometry(0.038, 0.032, 0.2, 10);
+        const llLg = new THREE.Mesh(lowerLegGeomG, legMat);
+        llLg.position.set(-0.12, 0.33, 0);
+        llLg.castShadow = true;
+        group.add(llLg);
+        const llRg = new THREE.Mesh(lowerLegGeomG, legMat);
+        llRg.position.set(0.12, 0.33, 0);
+        llRg.castShadow = true;
+        group.add(llRg);
+
+        // Dress ruffle at hem
+        const ruffleMat = new THREE.MeshStandardMaterial({ color: 0xc8507a, roughness: 0.45 });
+        const ruffleGeom = new THREE.TorusGeometry(0.38, 0.025, 6, 24);
+        const ruffle = new THREE.Mesh(ruffleGeom, ruffleMat);
+        ruffle.position.y = 0.72;
+        ruffle.rotation.x = Math.PI / 2;
+        group.add(ruffle);
+
+        // Red shoes
+        const shoeMat = new THREE.MeshPhongMaterial({ color: 0xe74c3c, shininess: 80, specular: 0x442222 });
+        const shoeGeomG = new THREE.SphereGeometry(0.06, 8, 6);
+        const shoeLg = new THREE.Mesh(shoeGeomG, shoeMat);
+        shoeLg.position.set(-0.12, 0.24, 0.02);
+        shoeLg.scale.set(0.9, 0.5, 1.3);
+        group.add(shoeLg);
+        const shoeRg = new THREE.Mesh(shoeGeomG, shoeMat);
+        shoeRg.position.set(0.12, 0.24, 0.02);
+        shoeRg.scale.set(0.9, 0.5, 1.3);
+        group.add(shoeRg);
+      } else {
+        // ── Boy: BLOCKY / cube-shaped body, green T-shirt ──
+
+        // T-shirt torso — BoxGeometry for blocky look
+        const tshirtMat = new THREE.MeshStandardMaterial({
+          color: 0x2d8a4e,
+          roughness: 0.48,
+          metalness: 0.08,
+          emissive: new THREE.Color(0x2d8a4e),
+          emissiveIntensity: 0.03
+        });
+        const torsoGeom = new THREE.BoxGeometry(0.42, 0.55, 0.24);
+        const torso = new THREE.Mesh(torsoGeom, tshirtMat);
+        torso.position.y = 1.16;
+        torso.castShadow = true;
+        group.add(torso);
+
+        // 'S' letter as a flat decal on the FRONT of the shirt
+        const sLetterTex = createTextTexture('S', 'rgba(0,0,0,0)', 'rgba(200,255,220,0.55)', 128);
+        sLetterTex.premultiplyAlpha = true;
+        const sLetterMat = new THREE.MeshBasicMaterial({
+          map: sLetterTex,
+          transparent: true,
+          depthWrite: false,
+          side: THREE.FrontSide
+        });
+        const sLetterGeom = new THREE.PlaneGeometry(0.2, 0.22);
+        const sLetter = new THREE.Mesh(sLetterGeom, sLetterMat);
+        sLetter.position.set(0, 1.2, 0.125);
+        group.add(sLetter);
+
+        // V-neck collar detail (darker green ring + opening)
+        const collarMat = new THREE.MeshStandardMaterial({ color: 0x1e6838, roughness: 0.55 });
+        const collar = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.04, 0.26), collarMat);
+        collar.position.y = 1.42;
+        group.add(collar);
+        // Sleeve cuffs
+        const cuffGeom = new THREE.TorusGeometry(0.042, 0.012, 6, 12);
+        const cuffL = new THREE.Mesh(cuffGeom, collarMat);
+        cuffL.position.set(-0.24, 1.28, 0.04);
+        cuffL.rotation.y = Math.PI / 2;
+        group.add(cuffL);
+        const cuffR = new THREE.Mesh(cuffGeom, collarMat);
+        cuffR.position.set(0.24, 1.28, 0.04);
+        cuffR.rotation.y = Math.PI / 2;
+        group.add(cuffR);
+
+        // T-shirt hem accent
+        const hemMat = new THREE.MeshStandardMaterial({ color: 0x247040, roughness: 0.7 });
+        const hem = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.03, 0.26), hemMat);
+        hem.position.y = 0.89;
+        group.add(hem);
+
+        // Belt
+        const beltMat = new THREE.MeshPhongMaterial({ color: 0x3a2820, shininess: 40 });
+        const belt = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.04, 0.26), beltMat);
+        belt.position.y = 0.87;
+        group.add(belt);
+        // Belt buckle
+        const buckleMat = new THREE.MeshPhongMaterial({ color: 0xc0a060, shininess: 80 });
+        const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.035, 0.02), buckleMat);
+        buckle.position.set(0, 0.87, 0.13);
+        group.add(buckle);
+
+        // Jeans legs — also blocky
+        const jeansMat = new THREE.MeshStandardMaterial({ color: 0x2a3858, roughness: 0.6, metalness: 0.04 });
+        const legGeom = new THREE.BoxGeometry(0.14, 0.6, 0.16);
+        const legL = new THREE.Mesh(legGeom, jeansMat);
+        legL.position.set(-0.1, 0.55, 0);
+        legL.castShadow = true;
+        group.add(legL);
+        const legR = new THREE.Mesh(legGeom, jeansMat);
+        legR.position.set(0.1, 0.55, 0);
+        legR.castShadow = true;
+        group.add(legR);
+
+        // Sneakers — blocky green
+        const sneakerMat = new THREE.MeshStandardMaterial({ color: 0x22aa55, roughness: 0.35, metalness: 0.15, emissive: 0x22aa55, emissiveIntensity: 0.03 });
+        const shoeGeom = new THREE.BoxGeometry(0.13, 0.08, 0.2);
+        const shoeL = new THREE.Mesh(shoeGeom, sneakerMat);
+        shoeL.position.set(-0.1, 0.22, 0.03);
+        group.add(shoeL);
+        const shoeR = new THREE.Mesh(shoeGeom, sneakerMat);
+        shoeR.position.set(0.1, 0.22, 0.03);
+        group.add(shoeR);
+
+        // White sole strip
+        const soleMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.4 });
+        const soleGeom = new THREE.BoxGeometry(0.14, 0.03, 0.21);
+        const soleL = new THREE.Mesh(soleGeom, soleMat);
+        soleL.position.set(-0.1, 0.19, 0.03);
+        group.add(soleL);
+        const soleR = new THREE.Mesh(soleGeom, soleMat);
+        soleR.position.set(0.1, 0.19, 0.03);
+        group.add(soleR);
+      }
+
+      // -- Arms -- (will be dynamically updated, but create base segments)
+      const armColor = isGirl ? 0xb0406a : 0x2d8a4e;
+      const armMat = new THREE.MeshStandardMaterial({ color: armColor, roughness: 0.45, metalness: 0.06, emissive: new THREE.Color(armColor), emissiveIntensity: 0.03 });
+      const forearmMat = new THREE.MeshStandardMaterial({ color: 0xd8b088, roughness: 0.42, metalness: 0.02, emissive: 0xd8b088, emissiveIntensity: 0.02 });
+
+      // Upper arm left
+      const uaGeom = new THREE.CylinderGeometry(0.04, 0.035, 0.3, 12);
+      const uaL = new THREE.Mesh(uaGeom, armMat);
+      uaL.name = 'upperArmL';
+      group.add(uaL);
+      // Forearm left
+      const faGeom = new THREE.CylinderGeometry(0.035, 0.03, 0.28, 12);
+      const faL = new THREE.Mesh(faGeom, forearmMat);
+      faL.name = 'forearmL';
+      group.add(faL);
+
+      // Upper arm right
+      const uaR = new THREE.Mesh(uaGeom.clone(), armMat);
+      uaR.name = 'upperArmR';
+      group.add(uaR);
+      // Forearm right
+      const faR = new THREE.Mesh(faGeom.clone(), forearmMat);
+      faR.name = 'forearmR';
+      group.add(faR);
+
+      // -- Hands (detailed with palm + fingers + thumb) --
+      const handMat = new THREE.MeshStandardMaterial({ color: 0xe0ba98, roughness: 0.38, metalness: 0.02, emissive: 0xe0ba98, emissiveIntensity: 0.03 });
+      const fingerMat = new THREE.MeshStandardMaterial({ color: 0xd8b088, roughness: 0.4, metalness: 0.02, emissive: 0xd8b088, emissiveIntensity: 0.02 });
+
+      function createHandGroup(side) {
+        const hg = new THREE.Group();
+        const sideSign = side === 'L' ? -1 : 1;
+
+        // Palm
+        const palmGeom = new THREE.BoxGeometry(0.08, 0.04, 0.08);
+        const palm = new THREE.Mesh(palmGeom, handMat);
+        palm.position.set(0, 0, 0.01);
+        hg.add(palm);
+
+        // Four fingers — small cylinders curling slightly upward
+        for (let f = 0; f < 4; f++) {
+          const fingerGeom = new THREE.CylinderGeometry(0.009, 0.007, 0.055, 6);
+          const finger = new THREE.Mesh(fingerGeom, fingerMat);
+          const fx = -0.027 + f * 0.018;
+          finger.position.set(fx, 0.01, 0.06);
+          finger.rotation.x = -0.5; // curl forward
+          hg.add(finger);
+        }
+
+        // Thumb — offset to the side
+        const thumbGeom = new THREE.CylinderGeometry(0.01, 0.008, 0.04, 5);
+        const thumb = new THREE.Mesh(thumbGeom, fingerMat);
+        thumb.position.set(sideSign * 0.045, 0.005, 0.02);
+        thumb.rotation.z = sideSign * 0.6;
+        thumb.rotation.x = -0.3;
+        hg.add(thumb);
+
+        // Wrist connector (smooth transition from forearm)
+        const wristGeom = new THREE.SphereGeometry(0.028, 8, 6);
+        const wrist = new THREE.Mesh(wristGeom, handMat);
+        wrist.position.set(0, -0.01, -0.01);
+        wrist.scale.set(1.2, 0.8, 1);
+        hg.add(wrist);
+
+        // Hand glow ring (subtle)
+        const hGlowGeom = new THREE.RingGeometry(0.04, 0.08, 16);
+        const hGlowMat = new THREE.MeshBasicMaterial({
+          color: 0xa89eff,
+          transparent: true,
+          opacity: 0.08,
+          side: THREE.DoubleSide
+        });
+        const hGlow = new THREE.Mesh(hGlowGeom, hGlowMat);
+        hGlow.rotation.x = -Math.PI / 2;
+        hGlow.position.y = -0.02;
+        hg.add(hGlow);
+
+        return hg;
+      }
+
+      const handL = createHandGroup('L');
+      handL.name = 'handL';
+      group.add(handL);
+      const handR = createHandGroup('R');
+      handR.name = 'handR';
+      group.add(handR);
+
+      // -- Ambient glow under juggler --
+      const glowGeom = new THREE.PlaneGeometry(1.5, 1.5);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: 0x7c6cf0,
+        transparent: true,
+        opacity: 0.1,
+        side: THREE.DoubleSide
+      });
+      const glow = new THREE.Mesh(glowGeom, glowMat);
+      glow.rotation.x = -Math.PI / 2;
+      glow.position.y = 0.01;
+      group.add(glow);
+
+      group.castShadow = true;
+      return group;
+    }
+
+    // Smoothed hand positions per juggler (lerp targets to avoid jitter)
+    const smoothHands = {
+      A: { L: null, R: null },
+      B: { L: null, R: null },
+      C: { L: null, R: null },
+      D: { L: null, R: null },
+      solo: { L: null, R: null }
+    };
+    const HAND_SMOOTH = 0.25; // 0 = no smoothing, 1 = instant
+
+    function lerpVec3(current, target, alpha) {
+      if (!current) return target.clone();
+      return current.clone().lerp(target, alpha);
+    }
+
+    function updateJugglerArms(group, handLPos, handRPos, smoothKey) {
+      smoothKey = smoothKey || 'solo';
+      const shoulderY = 1.38;
+      const shoulderSpread = 0.24;
+
+      const shoulderL = new THREE.Vector3(-shoulderSpread, shoulderY, 0.04);
+      const shoulderR = new THREE.Vector3(shoulderSpread, shoulderY, 0.04);
+
+      // Get hand positions in group local space
+      const groupWorldPos = new THREE.Vector3();
+      group.getWorldPosition(groupWorldPos);
+
+      let hlLocal = new THREE.Vector3(
+        handLPos.x - groupWorldPos.x,
+        handLPos.y - groupWorldPos.y,
+        handLPos.z - groupWorldPos.z
+      );
+      let hrLocal = new THREE.Vector3(
+        handRPos.x - groupWorldPos.x,
+        handRPos.y - groupWorldPos.y,
+        handRPos.z - groupWorldPos.z
+      );
+
+      // Smooth hand positions to avoid harsh jumps
+      const sk = smoothHands[smoothKey];
+      sk.L = lerpVec3(sk.L, hlLocal, HAND_SMOOTH);
+      sk.R = lerpVec3(sk.R, hrLocal, HAND_SMOOTH);
+      hlLocal = sk.L.clone();
+      hrLocal = sk.R.clone();
+
+      // Position arms using improved 2-segment IK with pole vector
+      positionArmSegments(group, 'L', shoulderL, hlLocal);
+      positionArmSegments(group, 'R', shoulderR, hrLocal);
+
+      // Position hands with wrist orientation (hands are now groups with fingers)
+      const handL = group.getObjectByName('handL');
+      const handR = group.getObjectByName('handR');
+      if (handL) {
+        handL.position.copy(hlLocal);
+        // Orient hand: fingers point forward, palm faces up when at rest
+        const forearmDir = hlLocal.clone().sub(shoulderL).normalize();
+        // Tilt hand to follow arm direction
+        handL.rotation.x = Math.atan2(-forearmDir.y, forearmDir.z) * 0.5 - 0.3;
+        handL.rotation.y = Math.atan2(forearmDir.x, forearmDir.z) * 0.3;
+        handL.rotation.z = Math.atan2(forearmDir.x, -forearmDir.y) * 0.25;
+      }
+      if (handR) {
+        handR.position.copy(hrLocal);
+        const forearmDir = hrLocal.clone().sub(shoulderR).normalize();
+        handR.rotation.x = Math.atan2(-forearmDir.y, forearmDir.z) * 0.5 - 0.3;
+        handR.rotation.y = Math.atan2(forearmDir.x, forearmDir.z) * 0.3;
+        handR.rotation.z = Math.atan2(forearmDir.x, -forearmDir.y) * 0.25;
+      }
+    }
+
+    function positionArmSegments(group, side, shoulder, handPos) {
+      const upperArm = group.getObjectByName('upperArm' + side);
+      const forearm = group.getObjectByName('forearm' + side);
+      if (!upperArm || !forearm) return;
+
+      const uaLen = 0.3;
+      const faLen = 0.28;
+
+      // Clamp hand to max arm reach
+      const dist = shoulder.distanceTo(handPos);
+      const maxReach = uaLen + faLen - 0.02;
+
+      let targetPos = handPos.clone();
+      if (dist > maxReach) {
+        targetPos = shoulder.clone().add(
+          handPos.clone().sub(shoulder).normalize().multiplyScalar(maxReach)
+        );
+      }
+
+      // 2-bone IK with proper pole vector
+      const d = shoulder.distanceTo(targetPos);
+      const a = uaLen;
+      const b = faLen;
+
+      let cosAngle = (a * a + d * d - b * b) / (2 * a * d);
+      cosAngle = Math.max(-1, Math.min(1, cosAngle));
+      const angle = Math.acos(cosAngle);
+
+      // Direction from shoulder to target
+      const dir = targetPos.clone().sub(shoulder).normalize();
+
+      // Pole vector: elbows bend OUTWARD and slightly FORWARD
+      // This is the key to realistic arm poses
+      const sideSign = side === 'L' ? -1 : 1;
+      // Outward + forward pole
+      const poleTarget = new THREE.Vector3(sideSign * 0.4, -0.3, 0.5).normalize();
+
+      // Build a frame: dir is the "forward" axis along the arm line
+      // We want the elbow to point toward the pole target
+      const up = new THREE.Vector3(0, 1, 0);
+      let perpRaw = new THREE.Vector3().crossVectors(dir, poleTarget);
+      if (perpRaw.length() < 0.001) {
+        perpRaw = new THREE.Vector3().crossVectors(dir, up);
+      }
+      perpRaw.normalize();
+      // The actual perpendicular that determines elbow position
+      const perp = new THREE.Vector3().crossVectors(perpRaw, dir).normalize();
+
+      // Choose direction closer to pole target
+      if (perp.dot(poleTarget) < 0) perp.negate();
+
+      const elbowPos = shoulder.clone()
+        .add(dir.clone().multiplyScalar(Math.cos(angle) * a))
+        .add(perp.clone().multiplyScalar(Math.sin(angle) * a));
+
+      // Position upper arm between shoulder and elbow
+      const uaMid = shoulder.clone().add(elbowPos).multiplyScalar(0.5);
+      upperArm.position.copy(uaMid);
+
+      const uaDir = elbowPos.clone().sub(shoulder).normalize();
+      const uaQuat = new THREE.Quaternion();
+      uaQuat.setFromUnitVectors(new THREE.Vector3(0, 1, 0), uaDir);
+      upperArm.quaternion.copy(uaQuat);
+
+      // Position forearm between elbow and hand
+      const faMid = elbowPos.clone().add(targetPos).multiplyScalar(0.5);
+      forearm.position.copy(faMid);
+
+      const faDir = targetPos.clone().sub(elbowPos).normalize();
+      const faQuat = new THREE.Quaternion();
+      faQuat.setFromUnitVectors(new THREE.Vector3(0, 1, 0), faDir);
+      forearm.quaternion.copy(faQuat);
+    }
+
+    // ─── JUGGLER INSTANCES ──────────────────────────────────────────
+
+    let jugglerA = null;
+    let jugglerB = null;
+    let jugglerC = null;
+    let jugglerD = null;
+
+    function setupJugglers() {
+      // Remove old jugglers
+      if (jugglerA) { scene.remove(jugglerA); jugglerA = null; }
+      if (jugglerB) { scene.remove(jugglerB); jugglerB = null; }
+      if (jugglerC) { scene.remove(jugglerC); jugglerC = null; }
+      if (jugglerD) { scene.remove(jugglerD); jugglerD = null; }
+
+      if (currentMode === 'quartet') {
+        jugglerA = createJugglerGroup('boy');
+        jugglerB = createJugglerGroup('girl');
+        jugglerC = createJugglerGroup('boy');
+        jugglerD = createJugglerGroup('girl');
+
+        const posA = map2Dto3D(QUARTET_JUGGLER_A_X, GROUND_Y_2D);
+        const posB = map2Dto3D(QUARTET_JUGGLER_B_X, GROUND_Y_2D);
+        const posC = map2Dto3D(QUARTET_JUGGLER_C_X, GROUND_Y_2D);
+        const posD = map2Dto3D(QUARTET_JUGGLER_D_X, GROUND_Y_2D);
+
+        jugglerA.position.set(posA.x, 0, 0);
+        jugglerB.position.set(posB.x, 0, 0);
+        jugglerC.position.set(posC.x, 0, 0);
+        jugglerD.position.set(posD.x, 0, 0);
+
+        jugglerA.rotation.y = 0.1;
+        jugglerD.rotation.y = -0.1;
+
+        scene.add(jugglerA);
+        scene.add(jugglerB);
+        scene.add(jugglerC);
+        scene.add(jugglerD);
+      } else if (currentMode === 'trio') {
+        jugglerA = createJugglerGroup('boy');
+        jugglerB = createJugglerGroup('girl');
+        jugglerC = createJugglerGroup('boy');
+
+        const posA = map2Dto3D(TRIO_JUGGLER_A_X, GROUND_Y_2D);
+        const posB = map2Dto3D(TRIO_JUGGLER_B_X, GROUND_Y_2D);
+        const posC = map2Dto3D(TRIO_JUGGLER_C_X, GROUND_Y_2D);
+
+        jugglerA.position.set(posA.x, 0, 0);
+        jugglerB.position.set(posB.x, 0, 0);
+        jugglerC.position.set(posC.x, 0, 0);
+
+        jugglerA.rotation.y = 0.12;
+        jugglerC.rotation.y = -0.12;
+
+        scene.add(jugglerA);
+        scene.add(jugglerB);
+        scene.add(jugglerC);
+      } else if (currentMode === 'passing') {
+        jugglerA = createJugglerGroup('boy');
+        jugglerB = createJugglerGroup('girl');
+
+        const posA = map2Dto3D(PASS_JUGGLER_A_X, GROUND_Y_2D);
+        const posB = map2Dto3D(PASS_JUGGLER_B_X, GROUND_Y_2D);
+
+        jugglerA.position.set(posA.x, 0, 0);
+        jugglerB.position.set(posB.x, 0, 0);
+
+        // Face each other slightly
+        jugglerA.rotation.y = 0.15;
+        jugglerB.rotation.y = -0.15;
+
+        scene.add(jugglerA);
+        scene.add(jugglerB);
+      } else {
+        jugglerA = createJugglerGroup('boy');
+        const posA = map2Dto3D(SOLO_CENTER_X, GROUND_Y_2D);
+        jugglerA.position.set(posA.x, 0, 0);
+        scene.add(jugglerA);
+      }
+    }
+
+    // ─── 3D PROP OBJECTS POOL ──────────────────────────────────────
+
+    const propMeshes = [];
+    const propGlowLights = [];
+    const MAX_PROPS = 20;
+
+    function createBallMesh(color) {
+      const geom = new THREE.SphereGeometry(0.09, 32, 24);
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(color),
+        roughness: 0.12,
+        metalness: 0.25,
+        emissive: new THREE.Color(color),
+        emissiveIntensity: 0.15,
+      });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.castShadow = true;
+
+      // Bright specular highlight sphere
+      const hlGeom = new THREE.SphereGeometry(0.03, 8, 6);
+      const hlMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+      const hl = new THREE.Mesh(hlGeom, hlMat);
+      hl.position.set(-0.025, 0.04, 0.06);
+      mesh.add(hl);
+
+      // Subtle rim glow ring
+      const rimGeom = new THREE.RingGeometry(0.085, 0.095, 24);
+      const rimMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color),
+        transparent: true,
+        opacity: 0.2,
+        side: THREE.DoubleSide
+      });
+      const rim = new THREE.Mesh(rimGeom, rimMat);
+      rim.lookAt(camera.position);
+      mesh.add(rim);
+
+      return mesh;
+    }
+
+    function createClubMesh(color) {
+      const clubGroup = new THREE.Group();
+
+      // Handle — wooden/cork look
+      const handleGeom = new THREE.CylinderGeometry(0.015, 0.022, 0.15, 10);
+      const handleMat = new THREE.MeshStandardMaterial({ color: 0xd4c8a0, roughness: 0.5, metalness: 0.05 });
+      const handle = new THREE.Mesh(handleGeom, handleMat);
+      handle.position.y = -0.08;
+      handle.castShadow = true;
+      clubGroup.add(handle);
+
+      // Knob
+      const knobGeom = new THREE.SphereGeometry(0.026, 10, 8);
+      const knob = new THREE.Mesh(knobGeom, handleMat);
+      knob.position.y = -0.17;
+      clubGroup.add(knob);
+
+      // Body (tapered) — glossy plastic
+      const bodyGeom = new THREE.CylinderGeometry(0.02, 0.058, 0.26, 12);
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(color),
+        roughness: 0.18,
+        metalness: 0.2,
+        emissive: new THREE.Color(color),
+        emissiveIntensity: 0.06
+      });
+      const body = new THREE.Mesh(bodyGeom, bodyMat);
+      body.position.y = 0.12;
+      body.castShadow = true;
+      clubGroup.add(body);
+
+      // Top cap (rounded)
+      const capGeom = new THREE.SphereGeometry(0.022, 10, 8);
+      const cap = new THREE.Mesh(capGeom, bodyMat);
+      cap.position.y = 0.26;
+      clubGroup.add(cap);
+
+      // Wrap-around white stripes
+      const stripeMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.3,
+        transparent: true,
+        opacity: 0.4
+      });
+      const stripeGeom = new THREE.TorusGeometry(0.045, 0.006, 6, 16);
+      const stripe1 = new THREE.Mesh(stripeGeom, stripeMat);
+      stripe1.position.y = 0.15;
+      stripe1.rotation.x = Math.PI / 2;
+      clubGroup.add(stripe1);
+      const stripe2 = new THREE.Mesh(stripeGeom, stripeMat);
+      stripe2.position.y = 0.175;
+      stripe2.rotation.x = Math.PI / 2;
+      clubGroup.add(stripe2);
+
+      clubGroup.castShadow = true;
+      return clubGroup;
+    }
+
+    function createRingMesh(color) {
+      const ringGroup = new THREE.Group();
+
+      // Main torus ring
+      const torusGeom = new THREE.TorusGeometry(0.1, 0.018, 12, 32);
+      const torusMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(color),
+        roughness: 0.15,
+        metalness: 0.55,
+        emissive: new THREE.Color(color),
+        emissiveIntensity: 0.08
+      });
+      const torus = new THREE.Mesh(torusGeom, torusMat);
+      torus.castShadow = true;
+      ringGroup.add(torus);
+
+      // Inner highlight ring for depth
+      const innerGeom = new THREE.TorusGeometry(0.1, 0.008, 8, 32);
+      const innerMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.18,
+        side: THREE.DoubleSide
+      });
+      const inner = new THREE.Mesh(innerGeom, innerMat);
+      inner.position.z = 0.012;
+      ringGroup.add(inner);
+
+      // Subtle edge glow
+      const glowGeom = new THREE.TorusGeometry(0.115, 0.005, 6, 32);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color),
+        transparent: true,
+        opacity: 0.15
+      });
+      const glow = new THREE.Mesh(glowGeom, glowMat);
+      ringGroup.add(glow);
+
+      ringGroup.castShadow = true;
+      // Default orientation: ring lies flat-ish, facing camera
+      ringGroup.rotation.x = Math.PI / 2;
+      return ringGroup;
+    }
+
+    function ensurePropMeshes(count, propType) {
+      // Clear existing
+      for (const m of propMeshes) scene.remove(m);
+      for (const l of propGlowLights) scene.remove(l);
+      propMeshes.length = 0;
+      propGlowLights.length = 0;
+
+      for (let i = 0; i < count; i++) {
+        const color = BALL_COLORS[i % BALL_COLORS.length];
+        let mesh;
+        if (propType === 'clubs') {
+          mesh = createClubMesh(color);
+        } else if (propType === 'rings') {
+          mesh = createRingMesh(color);
+        } else {
+          mesh = createBallMesh(color);
+        }
+        mesh.visible = false;
+        scene.add(mesh);
+        propMeshes.push(mesh);
+
+        // Glow light per ball
+        const light = new THREE.PointLight(new THREE.Color(color), 0.2, 2.0);
+        light.visible = false;
+        scene.add(light);
+        propGlowLights.push(light);
+      }
+    }
+
+    // ─── 3D PARTICLES ──────────────────────────────────────────────
+
+    const particlePool = [];
+    const MAX_3D_PARTICLES = 200;
+
+    let particleGeometry, particleMaterial, particleSystem;
+
+    function initParticleSystem() {
+      particleGeometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(MAX_3D_PARTICLES * 3);
+      const colors = new Float32Array(MAX_3D_PARTICLES * 3);
+      const sizes = new Float32Array(MAX_3D_PARTICLES);
+
+      particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      particleGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+      particleMaterial = new THREE.PointsMaterial({
+        size: 0.04,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.7,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        sizeAttenuation: true
+      });
+
+      particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+      scene.add(particleSystem);
+    }
+
+    function update3DParticles() {
+      const positions = particleGeometry.attributes.position.array;
+      const colors = particleGeometry.attributes.color.array;
+      const sizes = particleGeometry.attributes.size.array;
+
+      let visibleCount = 0;
+      for (let i = 0; i < particles.length && visibleCount < MAX_3D_PARTICLES; i++) {
+        const p = particles[i];
+        const pos3d = map2Dto3D(p.x, p.y);
+        const idx = visibleCount * 3;
+
+        positions[idx] = pos3d.x;
+        positions[idx + 1] = pos3d.y;
+        positions[idx + 2] = pos3d.z + (Math.random() - 0.5) * 0.1;
+
+        const c = new THREE.Color(p.color);
+        colors[idx] = c.r;
+        colors[idx + 1] = c.g;
+        colors[idx + 2] = c.b;
+
+        sizes[visibleCount] = p.size * p.life * 0.015;
+        visibleCount++;
+      }
+
+      // Hide remaining
+      for (let i = visibleCount; i < MAX_3D_PARTICLES; i++) {
+        const idx = i * 3;
+        positions[idx] = 0;
+        positions[idx + 1] = -100;
+        positions[idx + 2] = 0;
+        sizes[i] = 0;
+      }
+
+      particleGeometry.attributes.position.needsUpdate = true;
+      particleGeometry.attributes.color.needsUpdate = true;
+      particleGeometry.attributes.size.needsUpdate = true;
+    }
+
+    initParticleSystem();
+
+    // ─── CAMERA ORBIT CONTROLS (manual implementation) ──────────────
+
+    let camOrbitAngle = 0;
+    let camPolarAngle = Math.PI / 3.2;
+    let camDistance = 8.5;
+    let camTarget = new THREE.Vector3(0, 1.5, 0);
+    let isDragging = false;
+    let isRightDragging = false;
+    let dragStartX = 0, dragStartY = 0;
+    let dragStartAngle = 0, dragStartPolar = 0;
+    let dragStartTarget = new THREE.Vector3();
+
+    // Damping
+    let camOrbitVelocity = 0;
+    let camPolarVelocity = 0;
+
+    function updateCameraPosition() {
+      const x = camTarget.x + camDistance * Math.sin(camOrbitAngle) * Math.sin(camPolarAngle);
+      const y = camTarget.y + camDistance * Math.cos(camPolarAngle);
+      const z = camTarget.z + camDistance * Math.cos(camOrbitAngle) * Math.sin(camPolarAngle);
+      camera.position.set(x, y, z);
+      camera.lookAt(camTarget);
+    }
+
+    function resetCamera() {
+      camOrbitAngle = 0;
+      camPolarAngle = Math.PI / 3.2;
+      camDistance = 8.5;
+      camTarget.set(0, 1.5, 0);
+      updateCameraPosition();
+    }
+
+    rendererCanvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0 && !e.shiftKey) {
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        dragStartAngle = camOrbitAngle;
+        dragStartPolar = camPolarAngle;
+      } else if (e.button === 2 || (e.button === 0 && e.shiftKey)) {
+        isRightDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        dragStartTarget.copy(camTarget);
+      }
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const dx = (e.clientX - dragStartX) * 0.005;
+        const dy = (e.clientY - dragStartY) * 0.005;
+        camOrbitAngle = dragStartAngle - dx;
+        camPolarAngle = Math.max(0.2, Math.min(Math.PI * 0.85, dragStartPolar - dy));
+        updateCameraPosition();
+      } else if (isRightDragging) {
+        const dx = (e.clientX - dragStartX) * 0.005;
+        const dy = (e.clientY - dragStartY) * 0.005;
+        const right = new THREE.Vector3();
+        right.crossVectors(camera.up, camera.position.clone().sub(camTarget).normalize()).normalize();
+        camTarget.copy(dragStartTarget)
+          .add(right.multiplyScalar(-dx * camDistance * 0.15))
+          .add(new THREE.Vector3(0, dy * camDistance * 0.15, 0));
+        updateCameraPosition();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+      isRightDragging = false;
+    });
+
+    rendererCanvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      camDistance *= 1 + e.deltaY * 0.001;
+      camDistance = Math.max(2, Math.min(25, camDistance));
+      updateCameraPosition();
+    }, { passive: false });
+
+    rendererCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // Touch support
+    let touchStartDist = 0;
+    let touchStartAngle = 0;
+    let touchStartPolar = 0;
+    let touchStartCamDist = 0;
+
+    rendererCanvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        dragStartX = e.touches[0].clientX;
+        dragStartY = e.touches[0].clientY;
+        dragStartAngle = camOrbitAngle;
+        dragStartPolar = camPolarAngle;
+      } else if (e.touches.length === 2) {
+        isDragging = false;
+        const dx = e.touches[1].clientX - e.touches[0].clientX;
+        const dy = e.touches[1].clientY - e.touches[0].clientY;
+        touchStartDist = Math.sqrt(dx * dx + dy * dy);
+        touchStartCamDist = camDistance;
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    rendererCanvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1 && isDragging) {
+        const dx = (e.touches[0].clientX - dragStartX) * 0.005;
+        const dy = (e.touches[0].clientY - dragStartY) * 0.005;
+        camOrbitAngle = dragStartAngle - dx;
+        camPolarAngle = Math.max(0.2, Math.min(Math.PI * 0.85, dragStartPolar - dy));
+        updateCameraPosition();
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[1].clientX - e.touches[0].clientX;
+        const dy = e.touches[1].clientY - e.touches[0].clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (touchStartDist > 0) {
+          camDistance = touchStartCamDist * (touchStartDist / dist);
+          camDistance = Math.max(2, Math.min(25, camDistance));
+          updateCameraPosition();
+        }
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    rendererCanvas.addEventListener('touchend', () => {
+      isDragging = false;
+      touchStartDist = 0;
+    });
+
+    // Camera control buttons
+    document.getElementById('camResetBtn').addEventListener('click', resetCamera);
+    document.getElementById('camZoomInBtn').addEventListener('click', () => {
+      camDistance = Math.max(2, camDistance * 0.85);
+      updateCameraPosition();
+    });
+    document.getElementById('camZoomOutBtn').addEventListener('click', () => {
+      camDistance = Math.min(25, camDistance * 1.18);
+      updateCameraPosition();
+    });
+
+    updateCameraPosition();
+
+    // ─── BEAT HUD ──────────────────────────────────────────────────
+
+    const beatHud = document.getElementById('beatHud');
+    const jugglerLabels = document.getElementById('jugglerLabels');
+
+    function updateBeatHud(globalBeatF) {
+      if (!sim) return;
+      const currentBeatInPattern = Math.floor(globalBeatF) % sim.period;
+
+      // Rebuild if needed
+      if (beatHud.children.length !== sim.period) {
+        beatHud.innerHTML = '';
+        for (let i = 0; i < sim.period; i++) {
+          const dot = document.createElement('div');
+          dot.className = 'beat-dot';
+          dot.textContent = sim.vals[i].toString(36);
+          if (sim.passing) {
+            const juggler = sim.jugglerForBeat(i);
+            dot.classList.add(juggler === 'A' ? 'juggler-a' : juggler === 'B' ? 'juggler-b' : juggler === 'C' ? 'juggler-c' : 'juggler-d');
+          }
+          beatHud.appendChild(dot);
+        }
+      }
+
+      // Update active state
+      for (let i = 0; i < beatHud.children.length; i++) {
+        const dot = beatHud.children[i];
+        dot.classList.remove('active', 'active-a', 'active-b', 'active-c', 'active-d');
+        if (i === currentBeatInPattern) {
+          if (sim.passing) {
+            const juggler = sim.jugglerForBeat(i);
+            dot.classList.add(juggler === 'A' ? 'active-a' : juggler === 'B' ? 'active-b' : juggler === 'C' ? 'active-c' : 'active-d');
+          } else {
+            dot.classList.add('active');
+          }
+        }
+      }
+
+      // Juggler labels
+      jugglerLabels.style.display = sim.passing ? '' : 'none';
+      const cLabel = document.querySelector('.juggler-label-c');
+      if (cLabel) cLabel.style.display = (sim.trio || sim.quartet) ? '' : 'none';
+      const dLabel = document.querySelector('.juggler-label-d');
+      if (dLabel) dLabel.style.display = sim.quartet ? '' : 'none';
+    }
+
+    // ─── TRAJECTORY CHART (kept as 2D canvas) ──────────────────────
+
+    const trajCanvas = document.getElementById('trajChart');
+    const trajCtx = trajCanvas.getContext('2d');
+    const chartPanel = document.getElementById('chartPanel');
+
+    function updateTrajectoryChart(balls) {
+      if (!sim) return;
+      chartPanel.style.display = '';
+
+      const c = trajCtx;
+      const numBalls = sim.numBalls;
+
+      const cols = 1;
+      const rows = numBalls;
+      const cellW = 210, cellH = 80;
+      const gap = 6;
+      const totalW = cellW + 16;
+      const totalH = rows * cellH + (rows - 1) * gap + 12;
+
+      trajCanvas.width = totalW;
+      trajCanvas.height = totalH;
+
+      c.fillStyle = '#080814';
+      c.fillRect(0, 0, totalW, totalH);
+
+      const curveMap = {};
+      for (const ball of balls) {
+        if (ball.eqData && ball.airFrac > 0) {
+          const eq = ball.eqData;
+          const T = eq.airtime;
+          if (T > 0) {
+            const peakM = eq.peakH / METER_TO_PX;
+            const v0y = 2 * peakM / (T / 2);
+            curveMap[ball.id] = { color: ball.color, T, v0y, t: eq.t, frac: eq.frac };
+          }
+        }
+        if (!curveMap[ball.id]) {
+          curveMap[ball.id] = null;
+        }
+      }
+
+      for (let i = 0; i < numBalls; i++) {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const ox = 8;
+        const oy = 6 + row * (cellH + gap);
+        const color = BALL_COLORS[i % BALL_COLORS.length];
+        const cv = curveMap[i];
+
+        c.fillStyle = cv ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.008)';
+        if (c.roundRect) {
+          c.beginPath();
+          c.roundRect(ox, oy, cellW, cellH, 6);
+          c.fill();
+        } else {
+          c.fillRect(ox, oy, cellW, cellH);
+        }
+
+        c.strokeStyle = cv ? (color + '35') : 'rgba(120,100,255,0.06)';
+        c.lineWidth = 1;
+        if (c.roundRect) {
+          c.beginPath();
+          c.roundRect(ox, oy, cellW, cellH, 6);
+          c.stroke();
+        } else {
+          c.strokeRect(ox, oy, cellW, cellH);
+        }
+
+        c.fillStyle = color;
+        c.beginPath();
+        c.arc(ox + 10, oy + 10, 4, 0, Math.PI * 2);
+        c.fill();
+
+        c.fillStyle = cv ? color : '#3d3a5a';
+        c.font = '600 9px "JetBrains Mono", monospace';
+        c.textAlign = 'left';
+        c.textBaseline = 'middle';
+        c.fillText('#' + (i + 1), ox + 18, oy + 10);
+
+        const ml = 28, mr = 6, mt = 22, mb = 14;
+        const cw = cellW - ml - mr;
+        const ch = cellH - mt - mb;
+
+        if (!cv) {
+          c.fillStyle = '#2a2845';
+          c.font = '400 9px "JetBrains Mono", monospace';
+          c.textAlign = 'center';
+          c.textBaseline = 'middle';
+          c.fillText('in hand', ox + cellW / 2, oy + cellH / 2 + 4);
+          continue;
+        }
+
+        c.fillStyle = color + 'AA';
+        c.font = '500 8px "JetBrains Mono", monospace';
+        c.textAlign = 'right';
+        c.textBaseline = 'middle';
+        c.fillText('y=' + cv.v0y.toFixed(1) + 't\u22124.9t\u00B2', ox + cellW - mr, oy + 10);
+
+        const maxT = cv.T * 1.1;
+        const peakH_c = cv.v0y * cv.v0y / (2 * GRAVITY);
+        const maxH = peakH_c * 1.2 || 0.5;
+
+        c.strokeStyle = 'rgba(120,100,255,0.06)';
+        c.lineWidth = 0.5;
+        for (let g = 0.25; g < 1; g += 0.25) {
+          const gy = oy + mt + ch - g * ch;
+          c.beginPath(); c.moveTo(ox + ml, gy); c.lineTo(ox + ml + cw, gy); c.stroke();
+          const gx = ox + ml + g * cw;
+          c.beginPath(); c.moveTo(gx, oy + mt); c.lineTo(gx, oy + mt + ch); c.stroke();
+        }
+
+        c.strokeStyle = 'rgba(120,100,255,0.15)';
+        c.lineWidth = 0.7;
+        c.beginPath();
+        c.moveTo(ox + ml, oy + mt);
+        c.lineTo(ox + ml, oy + mt + ch);
+        c.lineTo(ox + ml + cw, oy + mt + ch);
+        c.stroke();
+
+        c.fillStyle = '#3d3a5a';
+        c.font = '400 7px "JetBrains Mono", monospace';
+        c.textAlign = 'center';
+        c.textBaseline = 'top';
+        c.fillText(maxT.toFixed(1) + 's', ox + ml + cw, oy + mt + ch + 2);
+        c.fillText('0', ox + ml, oy + mt + ch + 2);
+        c.textAlign = 'right';
+        c.textBaseline = 'middle';
+        c.fillText(peakH_c.toFixed(1) + 'm', ox + ml - 3, oy + mt);
+
+        const steps = 50;
+        c.beginPath();
+        c.strokeStyle = color + '25';
+        c.lineWidth = 1.2;
+        for (let s = 0; s <= steps; s++) {
+          const t = (s / steps) * cv.T;
+          const h = cv.v0y * t - 0.5 * GRAVITY * t * t;
+          const x = ox + ml + (t / maxT) * cw;
+          const y = oy + mt + ch - (Math.max(0, h) / maxH) * ch;
+          if (s === 0) c.moveTo(x, y); else c.lineTo(x, y);
+        }
+        c.stroke();
+
+        const pSteps = Math.max(1, Math.floor(cv.frac * steps));
+        c.beginPath();
+        c.strokeStyle = color;
+        c.lineWidth = 2;
+        c.shadowColor = color;
+        c.shadowBlur = 4;
+        for (let s = 0; s <= pSteps; s++) {
+          const t = (s / steps) * cv.T;
+          const h = cv.v0y * t - 0.5 * GRAVITY * t * t;
+          const x = ox + ml + (t / maxT) * cw;
+          const y = oy + mt + ch - (Math.max(0, h) / maxH) * ch;
+          if (s === 0) c.moveTo(x, y); else c.lineTo(x, y);
+        }
+        c.stroke();
+        c.shadowBlur = 0;
+
+        const curH = cv.v0y * cv.t - 0.5 * GRAVITY * cv.t * cv.t;
+        const dotX = ox + ml + (cv.t / maxT) * cw;
+        const dotY = oy + mt + ch - (Math.max(0, curH) / maxH) * ch;
+        c.fillStyle = color;
+        c.beginPath();
+        c.arc(dotX, dotY, 3.5, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = '#fff';
+        c.beginPath();
+        c.arc(dotX - 0.8, dotY - 0.8, 1.2, 0, Math.PI * 2);
+        c.fill();
+
+        c.fillStyle = '#6a6890';
+        c.font = '400 7px "JetBrains Mono", monospace';
+        c.textAlign = 'right';
+        c.textBaseline = 'bottom';
+        c.fillText('t=' + cv.t.toFixed(2) + 's h=' + Math.max(0, curH).toFixed(2) + 'm', ox + cellW - mr, oy + cellH - 2);
+      }
+    }
+
+    // ─── MAIN RENDER LOOP ─────────────────────────────────────────
+
+    let lastPropType = null;
+    let lastPropCount = 0;
+
+    function drawFrame(timestamp) {
+      if (!sim || !sim.running) return;
+      if (isPaused) return;
+
+      const now = (timestamp - totalPausedDuration) / 1000;
+      const { balls, handStates, globalBeatF } = getBallStates(sim, now);
+
+      // Ensure props are created
+      if (currentPropType !== lastPropType || sim.numBalls !== lastPropCount) {
+        ensurePropMeshes(sim.numBalls, currentPropType);
+        lastPropType = currentPropType;
+        lastPropCount = sim.numBalls;
+      }
+
+      // Update juggler arms based on hand states
+      if (sim.passing) {
+        if (jugglerA && handStates.A) {
+          const hlA = map2Dto3D(handStates.A.L.x, handStates.A.L.y);
+          const hrA = map2Dto3D(handStates.A.R.x, handStates.A.R.y);
+          updateJugglerArms(jugglerA, new THREE.Vector3(hlA.x, hlA.y, 0.18), new THREE.Vector3(hrA.x, hrA.y, 0.18), 'A');
+        }
+        if (jugglerB && handStates.B) {
+          const hlB = map2Dto3D(handStates.B.L.x, handStates.B.L.y);
+          const hrB = map2Dto3D(handStates.B.R.x, handStates.B.R.y);
+          updateJugglerArms(jugglerB, new THREE.Vector3(hlB.x, hlB.y, 0.18), new THREE.Vector3(hrB.x, hrB.y, 0.18), 'B');
+        }
+        if (jugglerC && handStates.C) {
+          const hlC = map2Dto3D(handStates.C.L.x, handStates.C.L.y);
+          const hrC = map2Dto3D(handStates.C.R.x, handStates.C.R.y);
+          updateJugglerArms(jugglerC, new THREE.Vector3(hlC.x, hlC.y, 0.18), new THREE.Vector3(hrC.x, hrC.y, 0.18), 'C');
+        }
+        if (jugglerD && handStates.D) {
+          const hlD = map2Dto3D(handStates.D.L.x, handStates.D.L.y);
+          const hrD = map2Dto3D(handStates.D.R.x, handStates.D.R.y);
+          hlD.z = 0.18; hrD.z = 0.18;
+          updateJugglerArms(jugglerD, new THREE.Vector3(hlD.x, hlD.y, hlD.z), new THREE.Vector3(hrD.x, hrD.y, hrD.z), 'D');
+        }
+      } else {
+        if (jugglerA && handStates.L) {
+          const hl = map2Dto3D(handStates.L.x, handStates.L.y);
+          const hr = map2Dto3D(handStates.R.x, handStates.R.y);
+          updateJugglerArms(jugglerA, new THREE.Vector3(hl.x, hl.y, 0.18), new THREE.Vector3(hr.x, hr.y, 0.18), 'solo');
+        }
+      }
+
+      // Update prop positions
+      for (let i = 0; i < propMeshes.length; i++) {
+        propMeshes[i].visible = false;
+        propGlowLights[i].visible = false;
+      }
+
+      for (const ball of balls) {
+        if (ball.id < propMeshes.length) {
+          const mesh = propMeshes[ball.id];
+          const light = propGlowLights[ball.id];
+          const pos3d = map2Dto3D(ball.x, ball.y);
+
+          mesh.position.set(pos3d.x, pos3d.y, pos3d.z);
+          mesh.visible = true;
+
+          // Club rotation
+          if (currentPropType === 'clubs') {
+            if (clubSpinCount === 0) {
+              // Flat / helicopter — club stays horizontal, gentle wobble
+              if (ball.airFrac > 0 && ball.airFrac <= 1) {
+                mesh.rotation.z = Math.PI / 2;
+                mesh.rotation.y = ball.airFrac * Math.PI * 2;
+                mesh.rotation.x = Math.sin(ball.airFrac * Math.PI) * 0.15;
+              } else if (ball.airFrac === -1) {
+                mesh.rotation.z = Math.PI / 2;
+                mesh.rotation.y = 0;
+                mesh.rotation.x = 0;
+              } else {
+                mesh.rotation.z = Math.PI / 2;
+                mesh.rotation.y = 0;
+                mesh.rotation.x = 0;
+              }
+            } else {
+              // Normal spin (1×, 2×, 3×, 4×)
+              if (ball.airFrac > 0 && ball.airFrac <= 1) {
+                mesh.rotation.z = ball.airFrac * clubSpinCount * Math.PI * 2;
+                mesh.rotation.x = 0;
+                mesh.rotation.y = 0;
+              } else if (ball.airFrac === -1) {
+                mesh.rotation.z = -Math.PI * 0.1;
+                mesh.rotation.x = 0;
+                mesh.rotation.y = 0;
+              } else {
+                mesh.rotation.z = Math.PI / 2;
+                mesh.rotation.x = 0;
+                mesh.rotation.y = 0;
+              }
+            }
+          }
+
+          // Ring rotation
+          if (currentPropType === 'rings') {
+            if (ringSpinCount === 0) {
+              // Flat / no rotation — ring stays horizontal (parallel to ground)
+              mesh.rotation.set(0, 0, 0);
+            } else if (ball.airFrac > 0 && ball.airFrac <= 1) {
+              // In flight: spin around the ring's axis
+              const spin = ball.airFrac * ringSpinCount * Math.PI * 2;
+              mesh.rotation.set(Math.PI / 2, spin, 0);
+            } else if (ball.airFrac === -1) {
+              // Just caught — slight tilt
+              mesh.rotation.set(Math.PI / 2, 0, -Math.PI * 0.05);
+            } else {
+              // In hand — tilted toward camera
+              mesh.rotation.set(Math.PI * 0.4, 0, 0);
+            }
+          }
+
+          // Glow light
+          light.position.set(pos3d.x, pos3d.y, pos3d.z + 0.15);
+          light.visible = true;
+
+          // Dynamic glow: brighter when in flight, extra for passes
+          if (ball.isPass && ball.airFrac > 0) {
+            light.intensity = 0.5;
+            light.distance = 2.5;
+          } else if (ball.airFrac > 0) {
+            const pulse = 0.25 + Math.sin(ball.airFrac * Math.PI) * 0.15;
+            light.intensity = pulse;
+            light.distance = 1.8;
+          } else {
+            light.intensity = 0.12;
+            light.distance = 1;
+          }
+        }
+      }
+
+      // Update particles
+      updateParticles();
+      update3DParticles();
+
+      // Update beat HUD
+      updateBeatHud(globalBeatF);
+
+      // Update trajectory chart
+      updateTrajectoryChart(balls);
+
+      // Subtle scene animation
+      const t = timestamp * 0.001;
+      rimLight.position.x = Math.sin(t * 0.5) * 2.5;
+      rimLight.position.z = Math.cos(t * 0.3) * 3.5 - 2;
+      spotLight.position.x = Math.sin(t * 0.2) * 0.5;
+
+      // Floating ambient particles
+      updateAmbientParticles(t);
+
+      // Render
+      renderer.render(scene, camera);
+
+      animId = requestAnimationFrame(drawFrame);
+    }
+
+    // ─── IDLE SCREEN ──────────────────────────────────────────────
+
+    function drawIdleScreen() {
+      // Just render the empty scene
+      renderer.render(scene, camera);
+    }
+
     // ─── UI WIRING ─────────────────────────────────────────────────────
 
     const siteswapInput = document.getElementById('siteswapInput');
@@ -2568,18 +3677,24 @@
     const errorMsg = document.getElementById('errorMsg');
 
     // Prop toggle
+    let currentPropType = 'balls';
     const propBtns = document.querySelectorAll('.prop-btn');
     propBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         propBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentPropType = btn.dataset.prop;
+        // Force prop rebuild on next frame
+        lastPropType = null;
       });
     });
 
     // Spin count toggle
     let clubSpinCount = 1;
+    let ringSpinCount = 1;
     const spinGroup = document.getElementById('spinGroup');
+    const clubSpinBtnsDiv = document.getElementById('clubSpinBtns');
+    const ringSpinBtnsDiv = document.getElementById('ringSpinBtns');
     const spinBtns = document.querySelectorAll('.spin-btn');
     spinBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2588,10 +3703,22 @@
         clubSpinCount = parseInt(btn.dataset.spin);
       });
     });
+    const ringSpinBtns = document.querySelectorAll('.ring-spin-btn');
+    ringSpinBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        ringSpinBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        ringSpinCount = parseInt(btn.dataset.spin);
+      });
+    });
 
     propBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        spinGroup.style.display = btn.dataset.prop === 'clubs' ? '' : 'none';
+        const isClubs = btn.dataset.prop === 'clubs';
+        const isRings = btn.dataset.prop === 'rings';
+        spinGroup.style.display = (isClubs || isRings) ? '' : 'none';
+        clubSpinBtnsDiv.style.display = isClubs ? '' : 'none';
+        ringSpinBtnsDiv.style.display = isRings ? '' : 'none';
       });
     });
 
@@ -2612,7 +3739,6 @@
 
     let currentSiteswapStr = '';
 
-    // ─── JUGGLE BUTTON: always starts (or restarts) the pattern ────────
     function startJuggling() {
       initAudio();
       fullStop();
@@ -2624,7 +3750,7 @@
       }
 
       let validation;
-      if (currentMode === 'passing') {
+      if (currentMode === 'passing' || currentMode === 'trio' || currentMode === 'quartet') {
         validation = validatePassingSiteswap(vals);
       } else {
         validation = validateSiteswap(vals);
@@ -2639,11 +3765,34 @@
       const bpm = parseInt(speedInput.value) || 280;
       const dwell = parseFloat(dwellInput.value) || 0.5;
 
-      if (currentMode === 'passing') {
+      if (currentMode === 'quartet') {
+        sim = createQuartetSimulator(vals, bpm, dwell);
+      } else if (currentMode === 'trio') {
+        sim = createTrioSimulator(vals, bpm, dwell);
+      } else if (currentMode === 'passing') {
         sim = createPassingSimulator(vals, bpm, dwell);
       } else {
         sim = createSimulator(vals, bpm, dwell);
       }
+
+      // Setup 3D jugglers
+      setupJugglers();
+
+      // Adjust camera for mode
+      if (currentMode === 'quartet') {
+        camTarget.set(0, 1.5, 0);
+        camDistance = 13;
+      } else if (currentMode === 'trio') {
+        camTarget.set(0, 1.5, 0);
+        camDistance = 11;
+      } else if (currentMode === 'passing') {
+        camTarget.set(0, 1.5, 0);
+        camDistance = 9.5;
+      } else {
+        camTarget.set(0, 1.5, 0);
+        camDistance = 7;
+      }
+      updateCameraPosition();
 
       currentSiteswapStr = siteswapInput.value.trim().toLowerCase();
       soundedThrows.clear();
@@ -2652,18 +3801,29 @@
       isPaused = false;
       pauseTimestamp = null;
       totalPausedDuration = 0;
+      lastPropType = null;
+      lastPropCount = 0;
 
-      document.getElementById('infoNumBalls').textContent = validation.numBalls + (currentMode === 'passing' ? ' (shared)' : '');
+      // Reset hand smoothing
+      smoothHands.A.L = null; smoothHands.A.R = null;
+      smoothHands.B.L = null; smoothHands.B.R = null;
+      smoothHands.C.L = null; smoothHands.C.R = null;
+      smoothHands.D.L = null; smoothHands.D.R = null;
+      smoothHands.solo.L = null; smoothHands.solo.R = null;
+
+      // Reset beat HUD
+      beatHud.innerHTML = '';
+
+      document.getElementById('infoNumBalls').textContent = validation.numBalls + (currentMode !== 'solo' ? ' (shared)' : '');
       document.getElementById('infoPeriod').textContent = validation.period;
       document.getElementById('infoAvg').textContent = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
       document.getElementById('infoPattern').textContent = vals.map(v => v.toString(36)).join('');
 
       pauseBtn.style.display = '';
-      pauseBtn.textContent = '⏸ Pause';
+      pauseBtn.textContent = '\u23F8 Pause';
       animId = requestAnimationFrame(drawFrame);
     }
 
-    // ─── PAUSE BUTTON: toggles pause / resume ──────────────────────────
     function togglePause() {
       if (!sim || !sim.running) return;
 
@@ -2672,13 +3832,13 @@
         pauseTimestamp = performance.now();
         if (animId) cancelAnimationFrame(animId);
         animId = null;
-        pauseBtn.textContent = '▶ Resume';
+        pauseBtn.textContent = '\u25B6 Resume';
       } else {
         isPaused = false;
         const resumeTimestamp = performance.now();
         totalPausedDuration += (resumeTimestamp - pauseTimestamp);
         pauseTimestamp = null;
-        pauseBtn.textContent = '⏸ Pause';
+        pauseBtn.textContent = '\u23F8 Pause';
         animId = requestAnimationFrame(drawFrame);
       }
     }
@@ -2697,33 +3857,29 @@
       totalPausedDuration = 0;
       currentSiteswapStr = '';
       pauseBtn.style.display = 'none';
-      pauseBtn.textContent = '⏸ Pause';
+      pauseBtn.textContent = '\u23F8 Pause';
+      lastPropType = null;
+      lastPropCount = 0;
 
       // Hide chart
       chartPanel.style.display = 'none';
 
-      const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-      bgGrad.addColorStop(0, '#0a0a18');
-      bgGrad.addColorStop(0.5, '#0e0e1e');
-      bgGrad.addColorStop(1, '#080814');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, W, H);
+      // Clear props
+      for (const m of propMeshes) { m.visible = false; }
+      for (const l of propGlowLights) { l.visible = false; }
 
-      ctx.fillStyle = '#4a486a';
-      ctx.font = '500 14px "DM Sans", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      if (currentMode === 'passing') {
-        ctx.fillText('Enter a 4-handed siteswap and press ▶ Juggle', W / 2, H / 2 - 10);
-        ctx.fillStyle = '#33315a';
-        ctx.font = '400 11px "DM Sans", sans-serif';
-        ctx.fillText('Odd throws pass between jugglers · Even throws are self throws', W / 2, H / 2 + 10);
-      } else {
-        ctx.fillText('Enter a siteswap and press ▶ Juggle', W / 2, H / 2 - 10);
-        ctx.fillStyle = '#33315a';
-        ctx.font = '400 11px "DM Sans", sans-serif';
-        ctx.fillText('Powered by real parabolic physics', W / 2, H / 2 + 10);
-      }
+      // Clear jugglers
+      if (jugglerA) { scene.remove(jugglerA); jugglerA = null; }
+      if (jugglerB) { scene.remove(jugglerB); jugglerB = null; }
+      if (jugglerC) { scene.remove(jugglerC); jugglerC = null; }
+      if (jugglerD) { scene.remove(jugglerD); jugglerD = null; }
+
+      // Clear beat HUD
+      beatHud.innerHTML = '';
+      jugglerLabels.style.display = 'none';
+
+      // Render idle
+      drawIdleScreen();
     }
 
     juggleBtn.addEventListener('click', startJuggling);
@@ -2749,7 +3905,6 @@
     // ─── PRESETS ───────────────────────────────────────────────────────
 
     const SOLO_PRESETS = [
-      // 3-ball
       { name: 'Cascade', ss: '3' },
       { name: 'Shower (3b)', ss: '51' },
       { name: 'Half-Shower', ss: '53' },
@@ -2765,7 +3920,6 @@
       { name: '50505', ss: '50505' },
       { name: '45141', ss: '45141' },
       { name: '31425', ss: '31425' },
-      // 4-ball
       { name: 'Fountain', ss: '4' },
       { name: 'Shower (4b)', ss: '71' },
       { name: 'Half-Shower (4b)', ss: '534' },
@@ -2780,7 +3934,6 @@
       { name: '5641', ss: '5641' },
       { name: '53444', ss: '53444' },
       { name: '64514', ss: '64514' },
-      // 5-ball
       { name: '5-Cascade', ss: '5' },
       { name: '744', ss: '744' },
       { name: '645', ss: '645' },
@@ -2792,7 +3945,6 @@
       { name: '9524', ss: '9524' },
       { name: '55514', ss: '55514' },
       { name: '64645', ss: '64645' },
-      // 6+ ball
       { name: '6-Fountain', ss: '6' },
       { name: '7-Cascade', ss: '7' },
       { name: '855', ss: '855' },
@@ -2801,7 +3953,6 @@
       { name: '8', ss: '8' },
       { name: '9', ss: '9' },
       { name: 'a', ss: 'a' },
-      // Fun combos
       { name: '5551', ss: '5551' },
       { name: '55550', ss: '55550' },
       { name: 'Yo-yo', ss: '24' },
@@ -2830,7 +3981,6 @@
     ];
 
     const PASSING_PRESETS = [
-      // 6 objects
       { name: '4-count', ss: '7', desc: 'Classic every-others' },
       { name: '3-count', ss: '786', desc: 'Pass-self-self' },
       { name: '2-count', ss: '77', desc: 'Every beat a pass' },
@@ -2845,7 +3995,6 @@
       { name: 'Holy Grail (6)', ss: '786', desc: 'Smooth 3-count' },
       { name: 'Vitoria', ss: '77862', desc: '6 obj Vitoria' },
       { name: 'Not Likely', ss: '966786', desc: '7 obj complex' },
-      // 7 objects
       { name: 'Pass-pass-self', ss: '996', desc: '7 obj PPS' },
       { name: 'Why Not', ss: '97', desc: '7 obj 2-count' },
       { name: 'Jim\'s 3-ct', ss: '978', desc: '7 obj 3-count' },
@@ -2854,38 +4003,112 @@
       { name: 'Parsnip', ss: '9968926', desc: '7 obj complex' },
       { name: 'Aspirin', ss: '996', desc: '7 obj aspirin' },
       { name: '7-obj 4-ct', ss: '96686', desc: '7 obj 4-count' },
-      // 5 objects
       { name: '5-obj 4-ct', ss: '5', desc: '5 obj every-others' },
       { name: '5-obj 3-ct', ss: '564', desc: '5 obj 3-count' },
       { name: '5-obj 2-ct', ss: '55', desc: '5 obj 2-count' },
       { name: '5-obj shower', ss: '91', desc: 'Shower passing' },
-      // 8 objects
       { name: '8-obj 2-ct', ss: 'b9', desc: '8 obj 2-count' },
       { name: '8-obj 3-ct', ss: 'a86', desc: '8 obj 3-count' },
       { name: '8-obj 4-ct', ss: 'b', desc: '8 obj every-others' },
-      // More 6 obj
       { name: 'Techno', ss: '68646', desc: '6 obj techno' },
       { name: 'Funky', ss: '786966', desc: '7 obj funky' },
       { name: 'Woody', ss: '7926', desc: '6 obj woody' },
       { name: 'Lampshade', ss: '6864', desc: '6 obj lampshade' },
       { name: '6-ct', ss: '7962', desc: '6 obj 6-count' },
       { name: 'Toast', ss: '72786', desc: '6 obj toast' },
-      // More 7 obj
       { name: '7-obj 5-ct', ss: '966966', desc: '7 obj 5-count' },
       { name: '7-obj 2-ct', ss: '99', desc: '7 obj 2-count fast' },
       { name: 'Bananas (7)', ss: '786966', desc: '7 obj bananas' },
       { name: 'Inverted Parsnip', ss: '966786', desc: '7 obj inverted' },
-      // 4 objects
       { name: '4-obj pass', ss: '3', desc: '4 obj basic pass' },
       { name: '4-obj 2-ct', ss: '33', desc: '4 obj 2-count' },
       { name: '4-obj shower', ss: '51', desc: '4 obj shower' },
+    ];
+
+    const TRIO_PRESETS = [
+      // ── Easy (5-6 objects) ──
+      { name: '5-obj cascade', ss: '555', desc: '5 objects, all passes between 3' },
+      { name: '6-count', ss: '6', desc: '6 objects, every-others' },
+      // ── Medium (7 objects) ──
+      { name: '7-feed', ss: '7', desc: '7 objects, simple feed' },
+      { name: '4-count (7)', ss: '786', desc: '7 obj, 4-count triangle' },
+      { name: 'Turbo (7)', ss: '966', desc: '7 obj, turbo pattern' },
+      { name: 'Triangle (7)', ss: '678', desc: '7 obj, ascending triangle' },
+      { name: 'Waltz (7)', ss: '867', desc: '7 obj, waltz rhythm' },
+      // ── Standard (8 objects) ──
+      { name: '8-count', ss: '8', desc: '8 objects, every-others' },
+      { name: '3-count (8)', ss: 'a86', desc: '8 obj, 3-count feed' },
+      { name: 'Scrambled V', ss: '978', desc: '8 obj, scrambled passes' },
+      { name: 'Isla Bonita', ss: '969', desc: '8 obj, Isla Bonita rhythm' },
+      { name: 'Chocolate', ss: '897', desc: '8 obj, chocolate bar' },
+      { name: 'Roundabout (8)', ss: '789', desc: '8 obj, roundabout' },
+      { name: '2-count (8)', ss: '97', desc: '8 obj, 2-count feed' },
+      { name: 'Gorilla (8)', ss: '996', desc: '8 obj, gorilla pattern' },
+      // ── Advanced (9 objects) ──
+      { name: '2-count (9)', ss: '9', desc: '9 objects, classic 2-count' },
+      { name: 'Triangle (9)', ss: '999', desc: '9 obj, all passes triangle' },
+      { name: 'Twister (9)', ss: 'a89', desc: '9 obj, twister' },
+      { name: 'Waterfall (9)', ss: '9a8', desc: '9 obj, waterfall' },
+      { name: 'Stampede (9)', ss: 'b97', desc: '9 obj, stampede' },
+      { name: 'Thunder (9)', ss: 'b88', desc: '9 obj, thunder' },
+      { name: 'Comet (9)', ss: 'c69', desc: '9 obj, comet' },
+      { name: '2-count alt (9)', ss: 'b7', desc: '9 obj, alternating 2-count' },
+      // ── Expert (10-11 objects) ──
+      { name: '10-count', ss: 'a', desc: '10 objects, every-others' },
+      { name: '10 feed (2-ct)', ss: 'a8', desc: '9 obj, fast 2-count' },
+      { name: 'Feast (11)', ss: 'b', desc: '11 objects, ultimate feast' },
+    ];
+
+    const QUARTET_PRESETS = [
+      // ── Beginner (4 objects) ──
+      { name: '4 cascade', ss: '4444', desc: '4 obj, all self throws' },
+      // ── Easy (7 objects) ──
+      { name: '7-feed', ss: '7', desc: '7 obj, simple feed' },
+      { name: 'Zigzag (7)', ss: '4a', desc: '7 obj, alternating 4 & 10' },
+      { name: 'Seesaw (7)', ss: '68', desc: '7 obj, alternating 6 & 8' },
+      { name: 'Box (7)', ss: '449b', desc: '7 obj, box pattern' },
+      // ── Medium (8 objects) ──
+      { name: '8-count', ss: '8', desc: '8 obj, every-others' },
+      { name: 'Star (8)', ss: 'a868', desc: '8 obj, star pattern' },
+      { name: 'Cross (8)', ss: 'c488', desc: '8 obj, cross passes' },
+      { name: 'Weave (8)', ss: 'c848', desc: '8 obj, weave' },
+      { name: 'Mirror (8)', ss: '44cc', desc: '8 obj, mirror passes' },
+      { name: 'Wave (8)', ss: '6a', desc: '8 obj, wave 2-count' },
+      { name: 'Pulse (8)', ss: '5b', desc: '8 obj, pulse rhythm' },
+      // ── Standard (9 objects) ──
+      { name: '9-feed', ss: '9', desc: '9 obj, simple feed' },
+      { name: 'Cascade (9)', ss: 'a8a8', desc: '9 obj, cascade feed' },
+      { name: 'Cyclone (9)', ss: 'ca86', desc: '9 obj, cyclone' },
+      { name: 'Spiral (9)', ss: '6ca8', desc: '9 obj, spiral' },
+      { name: 'Galaxy (9)', ss: '86ca', desc: '9 obj, galaxy' },
+      { name: 'Comet (9)', ss: '45de', desc: '9 obj, comet' },
+      { name: 'Eclipse (9)', ss: '45fc', desc: '9 obj, eclipse' },
+      { name: 'Rush (9)', ss: '4e', desc: '9 obj, rush 2-count' },
+      { name: 'Flash (9)', ss: '6c', desc: '9 obj, flash 2-count' },
+      { name: 'Orbit (9)', ss: '5d', desc: '9 obj, orbit 2-count' },
+      // ── Advanced (10 objects) ──
+      { name: '10-count', ss: 'a', desc: '10 obj, every-others' },
+      { name: 'Blizzard (10)', ss: 'b9b9', desc: '10 obj, blizzard' },
+      { name: 'Thunder (10)', ss: 'b8ab', desc: '10 obj, thunder' },
+      { name: 'Nova (10)', ss: 'c88c', desc: '10 obj, nova' },
+      { name: 'Storm (10)', ss: 'cc88', desc: '10 obj, storm' },
+      { name: 'Meteor (10)', ss: '5f', desc: '10 obj, meteor 2-count' },
+      { name: 'Vortex (10)', ss: '7d', desc: '10 obj, vortex 2-count' },
+      // ── Expert (11-13 objects) ──
+      { name: '11-feast', ss: 'b', desc: '11 obj, all passes' },
+      { name: 'Hurricane (11)', ss: '7f', desc: '11 obj, hurricane 2-count' },
+      { name: 'Avalanche (11)', ss: '9d', desc: '11 obj, avalanche 2-count' },
+      { name: '12-feast', ss: 'c', desc: '12 obj, ultimate feast' },
+      { name: 'Inferno (12)', ss: 'ae', desc: '12 obj, inferno 2-count' },
+      { name: 'Tsunami (12)', ss: 'bd', desc: '12 obj, tsunami 2-count' },
+      { name: '13-feast', ss: 'd', desc: '13 obj, insane feast' },
     ];
 
     const presetsDiv = document.getElementById('presets');
 
     function updatePresets() {
       presetsDiv.innerHTML = '';
-      const presets = currentMode === 'passing' ? PASSING_PRESETS : SOLO_PRESETS;
+      const presets = currentMode === 'quartet' ? QUARTET_PRESETS : currentMode === 'trio' ? TRIO_PRESETS : currentMode === 'passing' ? PASSING_PRESETS : SOLO_PRESETS;
       presets.forEach(p => {
         const chip = document.createElement('button');
         chip.className = 'preset-chip';
@@ -2900,7 +4123,7 @@
       });
     }
 
-    // ─── AUTO-START: passing 77 with clubs ─────────────────────────────
+    // ─── AUTO-START: passing bb with clubs ─────────────────────────
     currentMode = 'passing';
     document.querySelectorAll('.mode-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.mode === 'passing');
@@ -2910,11 +4133,18 @@
       b.classList.toggle('active', b.dataset.prop === 'clubs');
     });
     document.getElementById('spinGroup').style.display = '';
+    document.getElementById('clubSpinBtns').style.display = '';
+    document.getElementById('ringSpinBtns').style.display = 'none';
     siteswapInput.value = 'bb';
     updatePresets();
-    startJuggling();
+
+    // Initial render to show something before auto-start
+    drawIdleScreen();
+    // Small delay to let Three.js initialize
+    requestAnimationFrame(() => {
+      startJuggling();
+    });
   </script>
 
 </body>
-
 </html>

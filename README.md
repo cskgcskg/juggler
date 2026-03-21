@@ -1,52 +1,64 @@
-# Siteswap Explorer 🤹
-> An interactive, physics-based siteswap juggling pattern simulator built for the web.
+# Siteswap Explorer 3D
+
+An interactive, physics-based 3D juggling simulator powered by Three.js. Visualize siteswap patterns with realistic parabolic arcs, up to 4 jugglers, and 177 built-in presets.
 
 ## Overview
-Siteswap Explorer is a web-based juggling simulator that goes beyond simple animations. It uses real parabolic physics, precise airtime calculations, and dynamic audio synthesis to create a realistic and educational visualization of juggling patterns. 
 
-Whether you're exploring classic solo siteswaps like `531` or diving into complex 4-handed passing patterns like `786` (3-count), this tool breaks down the math and physics behind juggling in real time.
+Siteswap Explorer started as a 2D canvas juggling simulator and evolved into a full 3D experience with detailed character models, real-time physics, procedural audio, and support for solo, passing, trio, and quartet juggling modes.
 
-## ✨ Features
+Whether you're exploring a simple 3-ball cascade (`3`) or pushing limits with a 13-object quartet feast (`d`), the simulator accurately computes parabolic trajectories, hand timing, and inter-juggler passes using siteswap mathematics.
 
-- **Physics-Based Engine**: Balls and clubs follow real-world parabolic arcs governed by gravity. Throw height correlates accurately with airtime.
-- **Solo & Passing Modes**:
-  - **Solo**: Explore standard siteswaps (e.g., cascades, fountains, showers, and complex mixed patterns).
-  - **Passing**: Simulate two jugglers facing each other using 4-handed siteswap notation. Odd throws pass between jugglers, while even throws are self-throws.
-- **Prop Customization**: Swap between balls and clubs. Adjust the number of spins for club throws (1×, 2×, 3×).
-- **Live Trajectory Charts**: View real-time kinematics. Each prop gets its own mini-chart detailing the mathematical equation of its current parabolic flight ($y = v_0t - \frac{1}{2}gt^2$).
-- **Generative Audio**: Employs the Web Audio API to procedurally generate distinct sound effects for throws, passes, and catches.
-- **Adjustable Timing**: Dynamically tweak the tempo (BPM) and dwell ratio (the fraction of a beat the prop spends in the hand).
-- **Preset Library**: Includes dozens of built-in patterns ranging from basic 3-ball cascades to intricate 7-object passing sequences.
+## Features
 
-## 🚀 Getting Started
+**Physics & Rendering** -- Real parabolic arcs governed by gravity, rendered in 3D via Three.js r128 with PBR materials, 4K shadow maps, ambient floating particles, and dynamic lighting including key, fill, rim, hemisphere, and stage spot lights. ACES filmic tone mapping provides cinematic color.
 
-The simulator is built entirely with vanilla web technologies (HTML, CSS, and JavaScript). No build steps or heavy frameworks are required.
+**Four Juggling Modes** -- Solo (1 juggler), Passing (2 jugglers facing each other), Trio (3 jugglers cycling beats via `beat % 3`), and Quartet (4 jugglers cycling via `beat % 4`). Each mode has its own curated preset library.
 
-To run the project locally:
-1. Clone the repository.
-2. Open `index.html` in any modern web browser.
+**Three Prop Types** -- Balls (glossy spheres with specular highlights), Clubs (detailed multi-part geometry with handle, body, cap, and stripes), and Rings (torus geometry with inner highlight and edge glow). All props cast shadows and emit colored glow lights.
 
-## 🧠 What is Siteswap?
+**Spin Control** -- Clubs and rings support configurable rotation: 0x Flat (helicopter/pancake), 1x, 2x, 3x, and 4x Pancake. Balls have no rotation. The spin selector adapts its options to the selected prop type.
 
-Siteswap is a mathematical notation used by jugglers to describe juggling patterns. Each digit represents how many "beats" a prop stays in the air:
-- `3`: A standard throw that crosses to the other hand (e.g., 3-ball cascade).
-- `4`: A higher throw that stays in the same hand (e.g., 4-ball fountain).
-- `0`: An empty hand (a rest beat).
-- `1`: A quick zip or handoff to the other hand.
-- `2`: A momentary hold in the same hand.
-- **Odd digits** change hands; **Even digits** return to the same hand.
+**177 Built-in Presets** -- 73 solo patterns (cascades, fountains, showers, mills mess variations), 42 passing patterns (2-count through 7-count, chocolate bar, Jim's 3-count, and more), 26 trio patterns, and 36 quartet patterns ranging from 4-object beginner to 13-object expert.
 
-### Passing Mode (4-Handed Siteswap)
-In passing mode, beats alternate between Juggler A and Juggler B. 
-- **Odd throws** cross between jugglers (passes).
-- **Even throws** stay with the same juggler (selfs).
-- *Example:* `7` is a classic 6-object pass (every throw crosses).
+**3D Character Models** -- Hand-crafted juggler models with expressive faces (eyes with irises, pupils, shine dots, eyelashes, blush), detailed hair (girl ponytail with scrunchie and bow, boy jester hat with bells), ears with earrings, articulated hands (palm, 4 fingers, thumb, wrist), and clothing details (girl dress with 'H' letter decal, waist ribbon, ruffle hem, red shoes; boy green t-shirt with 'S' letter, belt with buckle, sleeve cuffs, jeans, sneakers).
 
-## 🛠️ Tech Stack
-- **HTML5 Canvas:** Fully custom physics rendering and particle systems.
-- **Vanilla JavaScript:** Zero dependencies. Custom scheduling, physics, and siteswap parsing engine.
-- **Web Audio API:** Real-time synthesized sound effects (oscillators and gain ramps).
-- **CSS3:** Modern UI with glassmorphism, responsive grid layouts, and animated gradients.
+**Inverse Kinematics** -- Two-bone IK with pole vectors for natural arm movement. Elbows bend outward and slightly forward. Hand positions are smoothed via lerp interpolation to prevent jitter.
 
-## ⚖️ License
+**Live Trajectory Chart** -- Real-time sidebar showing each prop's parabolic equation, peak height, airtime, and current position on the flight curve.
+
+**Generative Audio** -- Web Audio API synthesizes distinct sounds for throws, catches, and passes using oscillator/gain ramp combinations. Toggle sound on/off anytime.
+
+**Camera Controls** -- Click-drag to orbit around the scene. Scroll to zoom in/out. The camera automatically adjusts distance for each mode (closer for solo, wider for quartet).
+
+## Getting Started
+
+The entire application is a single HTML file with no build steps or dependencies (Three.js is loaded from CDN).
+
+1. Clone the repository
+2. Open `index.html` in any modern browser
+3. It auto-starts in Passing mode with clubs -- click any preset to try different patterns
+
+## What is Siteswap?
+
+Siteswap is a mathematical notation for juggling patterns where each digit represents how many beats a prop stays in the air before landing. The number of objects equals the average of all digits.
+
+A `3` is a standard crossing throw (3-ball cascade). A `5` goes higher and crosses. A `4` is a same-hand throw. A `0` is an empty beat. A `1` is a quick zip. Values above 9 use letters: `a`=10, `b`=11, `c`=12, etc.
+
+In passing/trio/quartet modes, beats alternate between jugglers. A throw whose value lands on a different juggler's beat becomes a pass; otherwise it's a self throw.
+
+## Tech Stack
+
+- **Three.js r128** -- WebGL rendering with PBR materials, shadow mapping, and tone mapping
+- **Vanilla JavaScript** -- Zero framework dependencies; custom siteswap parser, physics engine, IK solver, and simulator
+- **Web Audio API** -- Procedural sound synthesis
+- **CSS3** -- Glassmorphism panels, responsive layout, animated gradients
+
+## Credits
+
+Original 2D siteswap engine and UI by [The Best](mailto:cskgcskg@gmail.com).
+
+3D conversion, Three.js rendering, character models, trio/quartet modes, ring props, spin system, graphics improvements, and expanded preset libraries built with [Claude Code](https://claude.ai/claude-code) by Anthropic (Claude Opus 4.6).
+
+## License
+
 [MIT License](LICENSE)
