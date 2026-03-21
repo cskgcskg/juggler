@@ -55,8 +55,6 @@ In passing/trio/quartet modes, beats alternate between jugglers. A throw whose v
 
 ## Credits
 
-Original 2D siteswap engine and UI by [The Best](mailto:cskgcskg@gmail.com).
-
 3D conversion, Three.js rendering, character models, trio/quartet modes, ring props, spin system, graphics improvements, and expanded preset libraries built with [Claude Code](https://claude.ai/claude-code) by Anthropic (Claude Opus 4.6).
 
 ## License
