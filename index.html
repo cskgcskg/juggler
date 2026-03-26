@@ -9,9 +9,15 @@
     content="Interactive physics-based siteswap juggling pattern simulator with real parabolic arcs and sound effects.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" as="script">
   <link
     href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap"
-    rel="stylesheet">
+    rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet"></noscript>
   <style>
     *,
     *::before,
@@ -739,7 +745,7 @@
       font-weight: 600;
     }
 
-    .spin-btn, .ring-spin-btn, .mode-btn {
+    .spin-btn, .ring-spin-btn, .mode-btn, .arr-btn {
       background: rgba(255, 255, 255, 0.03);
       color: var(--text-dim);
       border: none;
@@ -757,16 +763,16 @@
       white-space: nowrap;
     }
 
-    .spin-btn:last-child, .ring-spin-btn:last-child, .mode-btn:last-child {
+    .spin-btn:last-child, .ring-spin-btn:last-child, .mode-btn:last-child, .arr-btn:last-child {
       border-right: none;
     }
 
-    .spin-btn:hover, .ring-spin-btn:hover, .mode-btn:hover {
+    .spin-btn:hover, .ring-spin-btn:hover, .mode-btn:hover, .arr-btn:hover {
       background: rgba(255, 255, 255, 0.06);
       color: var(--text);
     }
 
-    .spin-btn.active, .ring-spin-btn.active, .mode-btn.active {
+    .spin-btn.active, .ring-spin-btn.active, .mode-btn.active, .arr-btn.active {
       background: rgba(124, 108, 240, 0.18);
       color: var(--accent-bright);
       font-weight: 600;
@@ -981,6 +987,13 @@
               <button class="mode-btn" data-mode="passing">&#129337;&#8205;&#9794;&#65039;&#129337;&#8205;&#9792;&#65039; Passing</button>
               <button class="mode-btn" data-mode="trio">&#129337;&#129337;&#129337; Trio</button>
               <button class="mode-btn" data-mode="quartet">&#129337;&#129337;&#129337;&#129337; Quartet</button>
+            </div>
+          </div>
+          <div class="control-group" id="arrangementGroup" style="display:none;">
+            <label>Formation</label>
+            <div class="prop-toggle">
+              <button class="arr-btn active" data-arr="line">&#8212; Line</button>
+              <button class="arr-btn" data-arr="shape">&#9651; Shape</button>
             </div>
           </div>
           <div class="control-group" style="flex-direction:row; gap:8px; align-items:flex-end;">
@@ -1765,7 +1778,8 @@
           bx = throwX + (catchX - throwX) * frac;
 
           const heightScale = (sim.passing && info.isPass) ? 0.55 : 1.0;
-          const peakH = peakHeight(airtime) * METER_TO_PX * heightScale;
+          const MAX_PEAK_H_PX = 500; // cap to keep props within camera view (~5 world units above hands)
+          const peakH = Math.min(peakHeight(airtime) * METER_TO_PX * heightScale, MAX_PEAK_H_PX);
           by = HAND_Y - 4 * peakH * frac * (1 - frac);
 
           eqData = { throwX, catchX, peakH, airtime, frac, t: elapsed - throwMoment };
@@ -1798,6 +1812,16 @@
           }
         }
 
+        // Determine which juggler currently holds the ball (null if in flight)
+        let holder = null;
+        if (sim.passing) {
+          if (phase === 'dwell' || v === 2) {
+            holder = info.fromJuggler; // ball in hand before throw
+          } else if (phase !== 'air') {
+            holder = info.toJuggler;   // ball caught by receiving juggler
+          }
+        }
+
         balls.push({
           x: bx, y: by,
           color: BALL_COLORS[ballId % BALL_COLORS.length],
@@ -1805,6 +1829,9 @@
           airFrac: phase === 'air' ? frac : (phase === 'dwell' ? -1 : 0),
           throwValue: v,
           isPass: info.isPass || false,
+          fromJuggler: info.fromJuggler || null,
+          toJuggler: info.toJuggler || null,
+          holder: holder,
           eqData
         });
       }
@@ -1887,6 +1914,71 @@
       return { x, y, z: 0 };
     }
 
+    // ─── SHAPE FORMATION COORDINATE TRANSFORM ──────────────────────────
+    // In shape mode, jugglers are at different 3D positions than the physics
+    // engine assumes (which always uses line layout). This mapping transforms
+    // coordinates from line-space to shape-space per juggler.
+
+    const jugglerShapeInfo = {}; // populated by setupJugglers()
+
+    // Transform a 2D physics coordinate into 3D shape-formation space
+    // jugglerID: 'A','B','C','D' — which juggler this point belongs to
+    // zForward: extra forward offset (0.18 for hands, 0 for props)
+    function mapToShapeSpace(px, py, jugglerID, zForward) {
+      if (currentArrangement !== 'shape' || !jugglerShapeInfo[jugglerID]) {
+        const p = map2Dto3D(px, py);
+        p.z = zForward || 0;
+        return p;
+      }
+      const info = jugglerShapeInfo[jugglerID];
+      const pos3d = map2Dto3D(px, py);
+      // Local offset from juggler's line-mode center
+      const localX = pos3d.x - info.lineX;
+      const localY = pos3d.y;
+      const localZ = zForward || 0;
+      // Rotate local offset by juggler's facing angle (rotation.y)
+      const cosR = Math.cos(info.rotY);
+      const sinR = Math.sin(info.rotY);
+      const rotX = localX * cosR - localZ * sinR;
+      const rotZ = localX * sinR + localZ * cosR;
+      return {
+        x: info.shapeX + rotX,
+        y: localY,
+        z: info.shapeZ + rotZ
+      };
+    }
+
+    // For props: map 2D physics position into 3D shape-formation space.
+    // Uses 'holder' when ball is in a juggler's hand, interpolates during flight.
+    function mapPropToShapeSpace(px, py, fromJuggler, toJuggler, airFrac, holder) {
+      if (currentArrangement !== 'shape') {
+        return map2Dto3D(px, py);
+      }
+      const pos = map2Dto3D(px, py);
+
+      // If ball is held by a specific juggler, use that juggler's offset
+      if (holder && jugglerShapeInfo[holder]) {
+        const info = jugglerShapeInfo[holder];
+        const dx = info.shapeX - info.lineX;
+        return { x: pos.x + dx, y: pos.y, z: info.shapeZ };
+      }
+
+      // Ball in flight — interpolate offset between thrower and catcher
+      const fromInfo = jugglerShapeInfo[fromJuggler];
+      if (!fromInfo) return pos;
+      const toInfo = jugglerShapeInfo[toJuggler] || fromInfo;
+
+      const fromDX = fromInfo.shapeX - fromInfo.lineX;
+      const toDX = toInfo.shapeX - toInfo.lineX;
+
+      const t = (airFrac > 0 && airFrac <= 1 && fromJuggler !== toJuggler) ? airFrac : 0;
+
+      const dx = fromDX + (toDX - fromDX) * t;
+      const dz = fromInfo.shapeZ + (toInfo.shapeZ - fromInfo.shapeZ) * t;
+
+      return { x: pos.x + dx, y: pos.y, z: dz };
+    }
+
     // ─── THREE.JS SCENE SETUP ─────────────────────────────────────────
 
     const canvasWrapper = document.getElementById('canvasWrapper');
@@ -1923,15 +2015,15 @@
     // ─── LIGHTS ───────────────────────────────────────────────────────
 
     // Ambient for base illumination
-    const ambientLight = new THREE.AmbientLight(0x8888aa, 0.7);
+    const ambientLight = new THREE.AmbientLight(0x8888aa, 0.8);
     scene.add(ambientLight);
 
     // Main key light — warm, from upper-right-front
     const dirLight = new THREE.DirectionalLight(0xfff0dd, 1.4);
     dirLight.position.set(4, 10, 6);
     dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 4096;
-    dirLight.shadow.mapSize.height = 4096;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
     dirLight.shadow.camera.near = 0.1;
     dirLight.shadow.camera.far = 40;
     dirLight.shadow.camera.left = -12;
@@ -1940,18 +2032,13 @@
     dirLight.shadow.camera.bottom = -2;
     dirLight.shadow.bias = -0.0005;
     dirLight.shadow.normalBias = 0.02;
-    dirLight.shadow.radius = 3;
+    dirLight.shadow.radius = 1;
     scene.add(dirLight);
 
     // Cool fill from left — theatrical blue
-    const fillLight = new THREE.DirectionalLight(0x6688ff, 0.55);
+    const fillLight = new THREE.DirectionalLight(0x6688ff, 0.6);
     fillLight.position.set(-5, 6, 2);
     scene.add(fillLight);
-
-    // Warm fill from right
-    const warmFill = new THREE.DirectionalLight(0xffaa66, 0.25);
-    warmFill.position.set(5, 3, 1);
-    scene.add(warmFill);
 
     // Back fill for silhouette prevention
     const backFill = new THREE.DirectionalLight(0x5566aa, 0.4);
@@ -1967,17 +2054,12 @@
     rimLight.position.set(0, 5, -3);
     scene.add(rimLight);
 
-    // Stage spotlight — warm pool on performers
-    const spotLight = new THREE.PointLight(0xffe8cc, 0.45, 15);
-    spotLight.position.set(0, 6, 0);
-    scene.add(spotLight);
-
     // ─── GRID FLOOR ──────────────────────────────────────────────────
 
-    // Matte dark floor — no reflections
+    // Vibrant purple floor
     const floorGeom = new THREE.PlaneGeometry(30, 30);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x0c0c22,
+      color: 0x2a1a4a,
       roughness: 0.95,
       metalness: 0.0
     });
@@ -1987,15 +2069,15 @@
     floor.receiveShadow = true;
     scene.add(floor);
 
-    // Subtle grid lines
-    const gridHelper = new THREE.GridHelper(20, 40, 0x25254a, 0x18183a);
+    // Vibrant purple grid lines
+    const gridHelper = new THREE.GridHelper(20, 30, 0x6a4aaa, 0x4a2a8a);
     gridHelper.position.y = 0;
-    gridHelper.material.opacity = 0.3;
+    gridHelper.material.opacity = 0.5;
     gridHelper.material.transparent = true;
     scene.add(gridHelper);
 
     // ─── AMBIENT FLOATING PARTICLES ─────────────────────────────────
-    const ambientParticleCount = 80;
+    const ambientParticleCount = 50;
     const ambientParticleGeo = new THREE.BufferGeometry();
     const ambientPositions = new Float32Array(ambientParticleCount * 3);
     const ambientSizes = new Float32Array(ambientParticleCount);
@@ -2019,7 +2101,7 @@
       sizeAttenuation: true
     });
     const ambientParticles = new THREE.Points(ambientParticleGeo, ambientParticleMat);
-    scene.add(ambientParticles);
+    // ambient particles removed — not added to scene
 
     function updateAmbientParticles(time) {
       const pos = ambientParticleGeo.attributes.position.array;
@@ -2062,604 +2144,343 @@
       const group = new THREE.Group();
       const isGirl = gender === 'girl';
 
-      // -- Head --
-      // Boy gets a slightly blockier head (lower poly), girl stays rounder
-      const headSegments = isGirl ? 16 : 8;
-      const headGeom = isGirl
-        ? new THREE.SphereGeometry(0.2, 16, 12)
-        : new THREE.BoxGeometry(0.36, 0.4, 0.34);
-      const headMesh = new THREE.Mesh(headGeom, skinMat);
+      // ═══ HEAD WITH FACE TEXTURE ═══
+      const headGeom = new THREE.BoxGeometry(0.36, 0.36, 0.36);
+
+      // Create face texture (128x128 for smooth rendering)
+      const faceCanvas = document.createElement('canvas');
+      faceCanvas.width = 128;
+      faceCanvas.height = 128;
+      const faceCtx = faceCanvas.getContext('2d');
+      faceCtx.fillStyle = '#' + skinMat.color.getHexString();
+      faceCtx.fillRect(0, 0, 128, 128);
+
+      // Draw eyes (rounded rectangles for a friendly look)
+      faceCtx.fillStyle = '#1a1030';
+      faceCtx.beginPath();
+      faceCtx.arc(40, 44, 6, 0, Math.PI * 2);
+      faceCtx.fill();
+      faceCtx.beginPath();
+      faceCtx.arc(88, 44, 6, 0, Math.PI * 2);
+      faceCtx.fill();
+
+      // Eye highlights (small white dots)
+      faceCtx.fillStyle = '#ffffff';
+      faceCtx.beginPath();
+      faceCtx.arc(42, 42, 2, 0, Math.PI * 2);
+      faceCtx.fill();
+      faceCtx.beginPath();
+      faceCtx.arc(90, 42, 2, 0, Math.PI * 2);
+      faceCtx.fill();
+
+      // Draw smooth smile arc
+      faceCtx.strokeStyle = '#1a1030';
+      faceCtx.lineWidth = 3.5;
+      faceCtx.lineCap = 'round';
+      faceCtx.beginPath();
+      faceCtx.arc(64, 68, 26, 0.15 * Math.PI, 0.85 * Math.PI);
+      faceCtx.stroke();
+
+      // White teeth inside the smile
+      faceCtx.fillStyle = '#ffffff';
+      faceCtx.beginPath();
+      faceCtx.arc(64, 68, 24, 0.2 * Math.PI, 0.8 * Math.PI);
+      faceCtx.fill();
+
+      // Cover the top half of teeth with skin color so only bottom shows
+      faceCtx.fillStyle = '#' + skinMat.color.getHexString();
+      faceCtx.fillRect(40, 60, 48, 14);
+
+      // Girl: add pink blush (soft circles)
+      if (isGirl) {
+        faceCtx.fillStyle = '#f08ca0';
+        faceCtx.globalAlpha = 0.45;
+        faceCtx.beginPath();
+        faceCtx.arc(22, 62, 10, 0, Math.PI * 2);
+        faceCtx.fill();
+        faceCtx.beginPath();
+        faceCtx.arc(106, 62, 10, 0, Math.PI * 2);
+        faceCtx.fill();
+        faceCtx.globalAlpha = 1;
+      }
+
+      const faceTex = new THREE.CanvasTexture(faceCanvas);
+      faceTex.magFilter = THREE.LinearFilter;   // smooth filtering
+      faceTex.minFilter = THREE.LinearMipmapLinearFilter;
+
+      // Create material array: 6 faces (front=4 has face texture, rest are skin)
+      const headMaterials = [
+        skinMat,    // right
+        skinMat,    // left
+        skinMat,    // top
+        skinMat,    // bottom
+        new THREE.MeshStandardMaterial({ map: faceTex, color: 0xe8c0a0, roughness: 0.4, metalness: 0.02 }),  // front (face)
+        skinMat     // back
+      ];
+
+      const headMesh = new THREE.Mesh(headGeom, headMaterials);
       headMesh.position.y = 1.65;
-      if (isGirl) headMesh.scale.set(1, 1.15, 0.95);
       headMesh.castShadow = true;
       group.add(headMesh);
 
-      // -- Hair --
-      const hairColor = isGirl ? 0x402030 : 0x2a2040;
-      const hairMat = new THREE.MeshPhongMaterial({ color: hairColor, shininess: 25, specular: 0x332244 });
-
+      // ═══ HAIR ═══
       if (isGirl) {
-        // Fuller hair on top
-        const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat);
-        hairTop.position.y = 1.72;
-        hairTop.scale.set(1.05, 1, 1);
+        // Girl: box-shaped hair with flat side panels, darker color
+        const hairMat = new THREE.MeshStandardMaterial({ color: 0x402030, roughness: 0.4 });
+
+        // Hair top box
+        const hairTop = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.18, 0.36), hairMat);
+        hairTop.position.set(0, 1.83, 0);
+        hairTop.castShadow = true;
         group.add(hairTop);
 
-        // Side hair left
-        const sideL = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), hairMat);
-        sideL.position.set(-0.22, 1.6, 0);
-        sideL.scale.set(0.7, 2.2, 0.8);
+        // Side panels (left and right)
+        const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, 0.36), hairMat);
+        sideL.position.set(-0.22, 1.62, 0);
+        sideL.castShadow = true;
         group.add(sideL);
-        // Side hair right
-        const sideR = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), hairMat);
-        sideR.position.set(0.22, 1.6, 0);
-        sideR.scale.set(0.7, 2.2, 0.8);
+
+        const sideR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, 0.36), hairMat);
+        sideR.position.set(0.22, 1.62, 0);
+        sideR.castShadow = true;
         group.add(sideR);
 
-        // Ponytail
-        const ponyGeom = new THREE.SphereGeometry(0.1, 8, 6);
-        const pony = new THREE.Mesh(ponyGeom, hairMat);
-        pony.position.set(0.2, 1.72, -0.15);
-        pony.scale.set(0.8, 1.5, 0.8);
-        pony.rotation.z = -0.4;
+        // Ponytail (small box back)
+        const pony = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.1), hairMat);
+        pony.position.set(0, 1.72, -0.2);
+        pony.castShadow = true;
         group.add(pony);
 
-        // Scrunchie
-        const scrunchie = new THREE.Mesh(
-          new THREE.TorusGeometry(0.04, 0.015, 8, 12),
-          new THREE.MeshPhongMaterial({ color: 0xe74c3c })
-        );
-        scrunchie.position.set(0.2, 1.82, -0.12);
-        scrunchie.rotation.x = Math.PI / 3;
-        group.add(scrunchie);
-
-        // Bow on top
-        const bowMat = new THREE.MeshPhongMaterial({ color: 0xf472b6, shininess: 30 });
-        const bowL = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), bowMat);
-        bowL.position.set(-0.06, 1.88, 0.05);
-        bowL.scale.set(1.5, 0.6, 0.8);
+        // Bow on top (two box parts)
+        const bowMat = new THREE.MeshStandardMaterial({ color: 0xe06888, roughness: 0.4 });
+        const bowL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 0.08), bowMat);
+        bowL.position.set(-0.08, 2.0, 0);
+        bowL.castShadow = true;
         group.add(bowL);
-        const bowR = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), bowMat);
-        bowR.position.set(0.06, 1.88, 0.05);
-        bowR.scale.set(1.5, 0.6, 0.8);
+
+        const bowR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 0.08), bowMat);
+        bowR.position.set(0.08, 2.0, 0);
+        bowR.castShadow = true;
         group.add(bowR);
-        const bowKnot = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), new THREE.MeshPhongMaterial({ color: 0xec4899 }));
-        bowKnot.position.set(0, 1.87, 0.06);
-        group.add(bowKnot);
       } else {
-        // Boy short hair
-        const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.21, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), hairMat);
-        hairTop.position.y = 1.7;
+        // Boy: simple flat box hair on top, dark brown
+        const hairMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.4 });
+
+        // Hair top box
+        const hairTop = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.36), hairMat);
+        hairTop.position.set(0, 1.81, 0);
+        hairTop.castShadow = true;
         group.add(hairTop);
-        // Side hair
-        const sideL = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 4), hairMat);
-        sideL.position.set(-0.21, 1.62, 0);
-        sideL.scale.set(0.6, 1.5, 0.7);
-        group.add(sideL);
-        const sideR = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 4), hairMat);
-        sideR.position.set(0.21, 1.62, 0);
-        sideR.scale.set(0.6, 1.5, 0.7);
-        group.add(sideR);
 
-        // Jester hat
-        const hatBaseMat = new THREE.MeshPhongMaterial({ color: 0x8b5cf6, shininess: 40 });
-        const hatBase = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 8, 16), hatBaseMat);
-        hatBase.position.y = 1.83;
-        hatBase.rotation.x = Math.PI / 2;
-        group.add(hatBase);
+        // Jester hat using ONLY BoxGeometry
+        const hatBaseMat = new THREE.MeshStandardMaterial({ color: 0x8b5cf6, roughness: 0.4 });
+        const hatBand = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.04, 0.38), hatBaseMat);
+        hatBand.position.y = 1.87;
+        hatBand.castShadow = true;
+        group.add(hatBand);
 
+        // Three prongs (box cones replaced with tall thin boxes)
         const prongColors = [0xe74c3c, 0xf1c40f, 0x2ecc71];
-        const prongAngles = [-0.4, 0, 0.4];
-        const prongTips = [
-          { x: -0.18, y: 2.12 },
-          { x: 0, y: 2.2 },
-          { x: 0.18, y: 2.12 }
-        ];
+        const prongXs = [-0.18, 0, 0.18];
         for (let i = 0; i < 3; i++) {
-          const prongGeom = new THREE.ConeGeometry(0.06, 0.35, 8);
-          const prongMat = new THREE.MeshPhongMaterial({ color: prongColors[i], shininess: 30 });
-          const prong = new THREE.Mesh(prongGeom, prongMat);
-          prong.position.set(prongTips[i].x, prongTips[i].y - 0.15, 0.02);
-          prong.rotation.z = -prongAngles[i];
+          const prongMat = new THREE.MeshStandardMaterial({ color: prongColors[i], roughness: 0.35 });
+          const prong = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35, 0.08), prongMat);
+          prong.position.set(prongXs[i], 2.1, 0.02);
+          prong.castShadow = true;
           group.add(prong);
 
-          // Bell
-          const bellGeom = new THREE.SphereGeometry(0.035, 8, 6);
-          const bellMat = new THREE.MeshPhongMaterial({ color: 0xfbbf24, shininess: 60 });
-          const bell = new THREE.Mesh(bellGeom, bellMat);
-          bell.position.set(prongTips[i].x, prongTips[i].y + 0.02, 0.02);
+          // Bell (small yellow box)
+          const bellMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.3 });
+          const bell = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.06), bellMat);
+          bell.position.set(prongXs[i], 2.3, 0.02);
+          bell.castShadow = true;
           group.add(bell);
         }
       }
 
-      // -- Eyes --
-      const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, emissive: 0xffffff, emissiveIntensity: 0.08 });
-      const pupilMat = new THREE.MeshStandardMaterial({ color: 0x1a1030, roughness: 0.2 });
-      const irisMat = new THREE.MeshStandardMaterial({
-        color: isGirl ? 0x4a7a44 : 0x3a5a8a,
-        roughness: 0.2,
-        metalness: 0.1
-      });
+      // Eyes, nose, ears, smile are now on the face texture of the head (no 3D details)
 
-      // Eye positions adjust for box head vs sphere head
-      const eyeZ = isGirl ? 0.18 : 0.175;
-      const eyeSpread = isGirl ? 0.065 : 0.075;
-      const eyeY = isGirl ? 1.67 : 1.67;
-
-      const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.042, 12, 8), eyeWhiteMat);
-      eyeL.position.set(-eyeSpread, eyeY, eyeZ);
-      eyeL.scale.set(1, 0.8, 0.5);
-      group.add(eyeL);
-      const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.042, 12, 8), eyeWhiteMat);
-      eyeR.position.set(eyeSpread, eyeY, eyeZ);
-      eyeR.scale.set(1, 0.8, 0.5);
-      group.add(eyeR);
-
-      // Iris (colored ring around pupil)
-      const irisL = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), irisMat);
-      irisL.position.set(-eyeSpread, eyeY + 0.003, eyeZ + 0.02);
-      group.add(irisL);
-      const irisR = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), irisMat);
-      irisR.position.set(eyeSpread, eyeY + 0.003, eyeZ + 0.02);
-      group.add(irisR);
-
-      // Pupils
-      const pupilL = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 6), pupilMat);
-      pupilL.position.set(-eyeSpread, eyeY + 0.005, eyeZ + 0.03);
-      group.add(pupilL);
-      const pupilR = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 6), pupilMat);
-      pupilR.position.set(eyeSpread, eyeY + 0.005, eyeZ + 0.03);
-      group.add(pupilR);
-
-      // Eye shine (bright white dot)
-      const shineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const shineL = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), shineMat);
-      shineL.position.set(-eyeSpread + 0.012, eyeY + 0.01, eyeZ + 0.035);
-      group.add(shineL);
-      const shineR = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), shineMat);
-      shineR.position.set(eyeSpread + 0.012, eyeY + 0.01, eyeZ + 0.035);
-      group.add(shineR);
-
-      // Eyelashes for girl
-      if (isGirl) {
-        const lashMat = new THREE.MeshBasicMaterial({ color: 0x2a1830 });
-        for (let side = -1; side <= 1; side += 2) {
-          for (let j = -1; j <= 1; j++) {
-            const lash = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.001, 0.04, 4), lashMat);
-            lash.position.set(side * eyeSpread + j * 0.02, eyeY + 0.03, eyeZ + 0.01);
-            lash.rotation.z = side * 0.2 + j * 0.15;
-            group.add(lash);
-          }
-        }
-        // Blush (rosy cheeks)
-        const blushMat = new THREE.MeshStandardMaterial({ color: 0xf08ca0, transparent: true, opacity: 0.4, roughness: 0.5, emissive: 0xf08ca0, emissiveIntensity: 0.05 });
-        const blushL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), blushMat);
-        blushL.position.set(-0.12, 1.63, 0.14);
-        blushL.scale.set(1.2, 0.7, 0.3);
-        group.add(blushL);
-        const blushR = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), blushMat);
-        blushR.position.set(0.12, 1.63, 0.14);
-        blushR.scale.set(1.2, 0.7, 0.3);
-        group.add(blushR);
-      }
-
-      // Nose
-      const noseMat = new THREE.MeshStandardMaterial({ color: 0xd0a070, roughness: 0.5 });
-      if (isGirl) {
-        // Small cute nose
-        const nose = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), noseMat);
-        nose.position.set(0, 1.635, 0.2);
-        nose.scale.set(0.7, 0.8, 0.6);
-        group.add(nose);
-      } else {
-        // Slightly blockier nose for boy
-        const nose = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.025), noseMat);
-        nose.position.set(0, 1.63, 0.185);
-        group.add(nose);
-      }
-
-      // Ears
-      const earMat = new THREE.MeshStandardMaterial({ color: 0xd8a880, roughness: 0.45, metalness: 0.02 });
-      const earGeom = isGirl ? new THREE.SphereGeometry(0.035, 8, 6) : new THREE.BoxGeometry(0.04, 0.06, 0.03);
-      const earSpreadX = isGirl ? 0.2 : 0.19;
-      const earL = new THREE.Mesh(earGeom, earMat);
-      earL.position.set(-earSpreadX, 1.64, 0);
-      if (isGirl) earL.scale.set(0.5, 0.9, 0.6);
-      group.add(earL);
-      const earR = new THREE.Mesh(earGeom.clone ? earGeom.clone() : earGeom, earMat);
-      earR.position.set(earSpreadX, 1.64, 0);
-      if (isGirl) earR.scale.set(0.5, 0.9, 0.6);
-      group.add(earR);
-
-      // Girl earrings
-      if (isGirl) {
-        const earringMat = new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 90 });
-        const earringGeom = new THREE.SphereGeometry(0.015, 8, 6);
-        const earringL = new THREE.Mesh(earringGeom, earringMat);
-        earringL.position.set(-0.21, 1.6, 0.01);
-        group.add(earringL);
-        const earringR = new THREE.Mesh(earringGeom, earringMat);
-        earringR.position.set(0.21, 1.6, 0.01);
-        group.add(earringR);
-      }
-
-      // Eyebrows (both genders — adds expressiveness)
-      const browMat = new THREE.MeshStandardMaterial({ color: isGirl ? 0x402030 : 0x2a2040, roughness: 0.6 });
-      const browGeomL = new THREE.BoxGeometry(0.04, 0.008, 0.01);
-      const browL = new THREE.Mesh(browGeomL, browMat);
-      browL.position.set(-eyeSpread, eyeY + 0.04, eyeZ + 0.01);
-      browL.rotation.z = 0.12;
-      group.add(browL);
-      const browR = new THREE.Mesh(browGeomL.clone(), browMat);
-      browR.position.set(eyeSpread, eyeY + 0.04, eyeZ + 0.01);
-      browR.rotation.z = -0.12;
-      group.add(browR);
-
-      // -- Smile -- big and happy!
-      const smileFrontZ = isGirl ? 0.19 : 0.175; // girl sphere head protrudes more, boy box head front face
-      const smileY = isGirl ? 1.585 : 1.58;
-
-      if (isGirl) {
-        // Girl: fuller lips + bright smile
-        const smileMat = new THREE.MeshStandardMaterial({ color: 0xd05060, roughness: 0.3, emissive: 0xd05060, emissiveIntensity: 0.08 });
-        const smileGeom = new THREE.TorusGeometry(0.05, 0.01, 8, 16, Math.PI * 0.75);
-        const smile = new THREE.Mesh(smileGeom, smileMat);
-        smile.position.set(0, smileY, smileFrontZ);
-        smile.rotation.z = Math.PI * 0.12;
-        group.add(smile);
-
-        // Upper lip
-        const upperLipMat = new THREE.MeshStandardMaterial({ color: 0xcc5565, roughness: 0.35 });
-        const upperLip = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.007, 6, 12, Math.PI * 0.8), upperLipMat);
-        upperLip.position.set(0, smileY + 0.02, smileFrontZ + 0.005);
-        upperLip.rotation.z = Math.PI + Math.PI * 0.1;
-        group.add(upperLip);
-
-        // Lower lip (fuller)
-        const lowerLipMat = new THREE.MeshStandardMaterial({ color: 0xe06070, roughness: 0.3 });
-        const lowerLip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), lowerLipMat);
-        lowerLip.position.set(0, smileY - 0.012, smileFrontZ + 0.005);
-        lowerLip.scale.set(1.6, 0.45, 0.35);
-        group.add(lowerLip);
-
-        // Teeth (white strip showing through smile)
-        const teethMat = new THREE.MeshStandardMaterial({ color: 0xfff8f0, roughness: 0.3 });
-        const teeth = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.015), teethMat);
-        teeth.position.set(0, smileY + 0.003, smileFrontZ + 0.008);
-        group.add(teeth);
-      } else {
-        // Boy: wide happy grin
-        const smileMat = new THREE.MeshStandardMaterial({ color: 0x9a7050, roughness: 0.5 });
-        const smileGeom = new THREE.TorusGeometry(0.055, 0.012, 8, 16, Math.PI * 0.75);
-        const smile = new THREE.Mesh(smileGeom, smileMat);
-        smile.position.set(0, smileY, smileFrontZ);
-        smile.rotation.z = Math.PI * 0.12;
-        group.add(smile);
-
-        // Teeth strip
-        const teethMat = new THREE.MeshStandardMaterial({ color: 0xfff8f0, roughness: 0.3 });
-        const teeth = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.018), teethMat);
-        teeth.position.set(0, smileY + 0.005, smileFrontZ + 0.008);
-        group.add(teeth);
-      }
-
-      // -- Neck --
-      const neckGeom = new THREE.CylinderGeometry(0.065, 0.075, 0.1, 10);
+      // ═══ NECK ═══
+      const neckGeom = new THREE.BoxGeometry(0.12, 0.08, 0.12);
       const neck = new THREE.Mesh(neckGeom, skinMat);
-      neck.position.y = 1.48;
+      neck.position.y = 1.45;
+      neck.castShadow = true;
       group.add(neck);
 
-      // -- Torso --
+      // ═══ TORSO ═══
       if (isGirl) {
-        // Dress: cone/tapered cylinder flaring at bottom
-        const dressColor1 = 0xb0406a;
+        // Girl: dress with fitted bodice and flared skirt
         const dressMat = new THREE.MeshStandardMaterial({
-          color: dressColor1,
+          color: 0xb0406a,
           roughness: 0.38,
-          metalness: 0.08,
-          emissive: new THREE.Color(dressColor1),
-          emissiveIntensity: 0.04
+          metalness: 0.08
         });
-        const dressGeom = new THREE.CylinderGeometry(0.22, 0.38, 0.7, 24);
-        const dress = new THREE.Mesh(dressGeom, dressMat);
-        dress.position.y = 1.07;
-        dress.castShadow = true;
-        group.add(dress);
 
-        // 'H' letter on the FRONT of the dress — opaque decal
+        // Fitted bodice (upper torso)
+        const bodiceGeom = new THREE.BoxGeometry(0.36, 0.28, 0.22);
+        const bodice = new THREE.Mesh(bodiceGeom, dressMat);
+        bodice.position.y = 1.22;
+        bodice.castShadow = true;
+        group.add(bodice);
+
+        // Flared skirt (trapezoid shape using CylinderGeometry with different top/bottom radii)
+        const skirtGeom = new THREE.CylinderGeometry(0.18, 0.32, 0.38, 8);
+        const skirt = new THREE.Mesh(skirtGeom, dressMat);
+        skirt.position.y = 0.89;
+        skirt.castShadow = true;
+        group.add(skirt);
+
+        // Waist ribbon/belt accent
+        const ribbonMat = new THREE.MeshStandardMaterial({ color: 0xffc0d0, roughness: 0.3, metalness: 0.1 });
+        const ribbon = new THREE.Mesh(new THREE.BoxGeometry(0.37, 0.04, 0.23), ribbonMat);
+        ribbon.position.y = 1.08;
+        group.add(ribbon);
+
+        // 'H' letter on the FRONT of the bodice
         const hCanvas = document.createElement('canvas');
-        hCanvas.width = 128; hCanvas.height = 128;
+        hCanvas.width = 64;
+        hCanvas.height = 64;
         const hc = hCanvas.getContext('2d');
-        // Transparent background
-        hc.clearRect(0, 0, 128, 128);
-        // Bold white-pink letter
+        hc.clearRect(0, 0, 64, 64);
         hc.fillStyle = '#ffd0e0';
-        hc.font = 'bold 72px "Outfit", sans-serif';
+        hc.font = 'bold 40px "Outfit", sans-serif';
         hc.textAlign = 'center';
         hc.textBaseline = 'middle';
-        hc.fillText('H', 64, 64);
-        // Subtle outline for contrast
-        hc.strokeStyle = 'rgba(255,255,255,0.5)';
-        hc.lineWidth = 2;
-        hc.strokeText('H', 64, 64);
+        hc.fillText('H', 32, 32);
         const hTex = new THREE.CanvasTexture(hCanvas);
         const hLetterMat = new THREE.MeshBasicMaterial({
           map: hTex,
           transparent: true,
-          depthWrite: false,
-          side: THREE.DoubleSide
+          depthWrite: false
         });
-        const hLetterGeom = new THREE.PlaneGeometry(0.22, 0.24);
+        const hLetterGeom = new THREE.PlaneGeometry(0.16, 0.16);
         const hLetter = new THREE.Mesh(hLetterGeom, hLetterMat);
-        // Position well in front of the dress surface (dress radius ~0.28 at chest height)
-        hLetter.position.set(0, 1.18, 0.32);
+        hLetter.position.set(0, 1.22, 0.12);
         group.add(hLetter);
 
-        // Waist ribbon
-        const ribbonMat = new THREE.MeshPhongMaterial({ color: 0xd4608a, shininess: 30 });
-        const ribbon = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.02, 6, 16), ribbonMat);
-        ribbon.position.y = 1.2;
-        ribbon.rotation.x = Math.PI / 2;
-        group.add(ribbon);
+        // Legs underneath the skirt (skin-colored)
+        const legMat = new THREE.MeshStandardMaterial({ color: 0xd0aa90, roughness: 0.42 });
+        const legGeom = new THREE.BoxGeometry(0.12, 0.3, 0.12);
+        const legL = new THREE.Mesh(legGeom, legMat);
+        legL.position.set(-0.1, 0.48, 0);
+        legL.castShadow = true;
+        group.add(legL);
+        const legR = new THREE.Mesh(legGeom, legMat);
+        legR.position.set(0.1, 0.48, 0);
+        legR.castShadow = true;
+        group.add(legR);
 
-        // Small bow at waist
-        const wBowMat = new THREE.MeshPhongMaterial({ color: 0xe06888 });
-        const wBowL = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), wBowMat);
-        wBowL.position.set(-0.04, 1.2, 0.24);
-        wBowL.scale.set(1.5, 0.7, 0.5);
-        group.add(wBowL);
-        const wBowR = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), wBowMat);
-        wBowR.position.set(0.04, 1.2, 0.24);
-        wBowR.scale.set(1.5, 0.7, 0.5);
-        group.add(wBowR);
-
-        // Legs (skin below dress) — upper + lower with knee
-        const legMat = new THREE.MeshStandardMaterial({ color: 0xd0aa90, roughness: 0.42, emissive: 0xd0aa90, emissiveIntensity: 0.02 });
-        // Upper legs
-        const upperLegGeomG = new THREE.CylinderGeometry(0.042, 0.038, 0.22, 10);
-        const ulLg = new THREE.Mesh(upperLegGeomG, legMat);
-        ulLg.position.set(-0.12, 0.56, 0);
-        ulLg.castShadow = true;
-        group.add(ulLg);
-        const ulRg = new THREE.Mesh(upperLegGeomG, legMat);
-        ulRg.position.set(0.12, 0.56, 0);
-        ulRg.castShadow = true;
-        group.add(ulRg);
-        // Knees
-        const kneeMat = new THREE.MeshStandardMaterial({ color: 0xc8a488, roughness: 0.45 });
-        const kneeGeom = new THREE.SphereGeometry(0.032, 8, 6);
-        const kneeL = new THREE.Mesh(kneeGeom, kneeMat);
-        kneeL.position.set(-0.12, 0.44, 0.01);
-        group.add(kneeL);
-        const kneeR = new THREE.Mesh(kneeGeom, kneeMat);
-        kneeR.position.set(0.12, 0.44, 0.01);
-        group.add(kneeR);
-        // Lower legs
-        const lowerLegGeomG = new THREE.CylinderGeometry(0.038, 0.032, 0.2, 10);
-        const llLg = new THREE.Mesh(lowerLegGeomG, legMat);
-        llLg.position.set(-0.12, 0.33, 0);
-        llLg.castShadow = true;
-        group.add(llLg);
-        const llRg = new THREE.Mesh(lowerLegGeomG, legMat);
-        llRg.position.set(0.12, 0.33, 0);
-        llRg.castShadow = true;
-        group.add(llRg);
-
-        // Dress ruffle at hem
-        const ruffleMat = new THREE.MeshStandardMaterial({ color: 0xc8507a, roughness: 0.45 });
-        const ruffleGeom = new THREE.TorusGeometry(0.38, 0.025, 6, 24);
-        const ruffle = new THREE.Mesh(ruffleGeom, ruffleMat);
-        ruffle.position.y = 0.72;
-        ruffle.rotation.x = Math.PI / 2;
-        group.add(ruffle);
-
-        // Red shoes
-        const shoeMat = new THREE.MeshPhongMaterial({ color: 0xe74c3c, shininess: 80, specular: 0x442222 });
-        const shoeGeomG = new THREE.SphereGeometry(0.06, 8, 6);
-        const shoeLg = new THREE.Mesh(shoeGeomG, shoeMat);
-        shoeLg.position.set(-0.12, 0.24, 0.02);
-        shoeLg.scale.set(0.9, 0.5, 1.3);
-        group.add(shoeLg);
-        const shoeRg = new THREE.Mesh(shoeGeomG, shoeMat);
-        shoeRg.position.set(0.12, 0.24, 0.02);
-        shoeRg.scale.set(0.9, 0.5, 1.3);
-        group.add(shoeRg);
+        // Red box shoes
+        const shoeMat = new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.35 });
+        const shoeGeom = new THREE.BoxGeometry(0.12, 0.08, 0.16);
+        const shoeL = new THREE.Mesh(shoeGeom, shoeMat);
+        shoeL.position.set(-0.1, 0.26, 0);
+        shoeL.castShadow = true;
+        group.add(shoeL);
+        const shoeR = new THREE.Mesh(shoeGeom, shoeMat);
+        shoeR.position.set(0.1, 0.26, 0);
+        shoeR.castShadow = true;
+        group.add(shoeR);
       } else {
-        // ── Boy: BLOCKY / cube-shaped body, green T-shirt ──
-
-        // T-shirt torso — BoxGeometry for blocky look
+        // Boy: green box shirt
         const tshirtMat = new THREE.MeshStandardMaterial({
           color: 0x2d8a4e,
           roughness: 0.48,
-          metalness: 0.08,
-          emissive: new THREE.Color(0x2d8a4e),
-          emissiveIntensity: 0.03
+          metalness: 0.08
         });
-        const torsoGeom = new THREE.BoxGeometry(0.42, 0.55, 0.24);
+        const torsoGeom = new THREE.BoxGeometry(0.38, 0.5, 0.22);
         const torso = new THREE.Mesh(torsoGeom, tshirtMat);
         torso.position.y = 1.16;
         torso.castShadow = true;
         group.add(torso);
 
-        // 'S' letter as a flat decal on the FRONT of the shirt
-        const sLetterTex = createTextTexture('S', 'rgba(0,0,0,0)', 'rgba(200,255,220,0.55)', 128);
-        sLetterTex.premultiplyAlpha = true;
+        // 'S' letter on FRONT of shirt
+        const sLetterTex = createTextTexture('S', 'rgba(0,0,0,0)', 'rgba(200,255,220,0.75)', 64);
         const sLetterMat = new THREE.MeshBasicMaterial({
           map: sLetterTex,
           transparent: true,
-          depthWrite: false,
-          side: THREE.FrontSide
+          depthWrite: false
         });
-        const sLetterGeom = new THREE.PlaneGeometry(0.2, 0.22);
+        const sLetterGeom = new THREE.PlaneGeometry(0.14, 0.14);
         const sLetter = new THREE.Mesh(sLetterGeom, sLetterMat);
-        sLetter.position.set(0, 1.2, 0.125);
+        sLetter.position.set(0, 1.2, 0.12);
         group.add(sLetter);
 
-        // V-neck collar detail (darker green ring + opening)
-        const collarMat = new THREE.MeshStandardMaterial({ color: 0x1e6838, roughness: 0.55 });
-        const collar = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.04, 0.26), collarMat);
-        collar.position.y = 1.42;
-        group.add(collar);
-        // Sleeve cuffs
-        const cuffGeom = new THREE.TorusGeometry(0.042, 0.012, 6, 12);
-        const cuffL = new THREE.Mesh(cuffGeom, collarMat);
-        cuffL.position.set(-0.24, 1.28, 0.04);
-        cuffL.rotation.y = Math.PI / 2;
-        group.add(cuffL);
-        const cuffR = new THREE.Mesh(cuffGeom, collarMat);
-        cuffR.position.set(0.24, 1.28, 0.04);
-        cuffR.rotation.y = Math.PI / 2;
-        group.add(cuffR);
-
-        // T-shirt hem accent
-        const hemMat = new THREE.MeshStandardMaterial({ color: 0x247040, roughness: 0.7 });
-        const hem = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.03, 0.26), hemMat);
-        hem.position.y = 0.89;
-        group.add(hem);
-
-        // Belt
-        const beltMat = new THREE.MeshPhongMaterial({ color: 0x3a2820, shininess: 40 });
-        const belt = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.04, 0.26), beltMat);
-        belt.position.y = 0.87;
+        // Box belt
+        const beltMat = new THREE.MeshStandardMaterial({ color: 0x3a2820, roughness: 0.4 });
+        const belt = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.24), beltMat);
+        belt.position.y = 0.88;
         group.add(belt);
-        // Belt buckle
-        const buckleMat = new THREE.MeshPhongMaterial({ color: 0xc0a060, shininess: 80 });
-        const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.035, 0.02), buckleMat);
-        buckle.position.set(0, 0.87, 0.13);
-        group.add(buckle);
 
-        // Jeans legs — also blocky
+        // Jeans legs
         const jeansMat = new THREE.MeshStandardMaterial({ color: 0x2a3858, roughness: 0.6, metalness: 0.04 });
-        const legGeom = new THREE.BoxGeometry(0.14, 0.6, 0.16);
+        const legGeom = new THREE.BoxGeometry(0.14, 0.55, 0.14);
         const legL = new THREE.Mesh(legGeom, jeansMat);
-        legL.position.set(-0.1, 0.55, 0);
+        legL.position.set(-0.12, 0.52, 0);
         legL.castShadow = true;
         group.add(legL);
         const legR = new THREE.Mesh(legGeom, jeansMat);
-        legR.position.set(0.1, 0.55, 0);
+        legR.position.set(0.12, 0.52, 0);
         legR.castShadow = true;
         group.add(legR);
 
-        // Sneakers — blocky green
-        const sneakerMat = new THREE.MeshStandardMaterial({ color: 0x22aa55, roughness: 0.35, metalness: 0.15, emissive: 0x22aa55, emissiveIntensity: 0.03 });
-        const shoeGeom = new THREE.BoxGeometry(0.13, 0.08, 0.2);
+        // Green box sneakers
+        const sneakerMat = new THREE.MeshStandardMaterial({ color: 0x22aa55, roughness: 0.35, metalness: 0.15 });
+        const shoeGeom = new THREE.BoxGeometry(0.12, 0.08, 0.18);
         const shoeL = new THREE.Mesh(shoeGeom, sneakerMat);
-        shoeL.position.set(-0.1, 0.22, 0.03);
+        shoeL.position.set(-0.12, 0.22, 0.02);
+        shoeL.castShadow = true;
         group.add(shoeL);
         const shoeR = new THREE.Mesh(shoeGeom, sneakerMat);
-        shoeR.position.set(0.1, 0.22, 0.03);
+        shoeR.position.set(0.12, 0.22, 0.02);
+        shoeR.castShadow = true;
         group.add(shoeR);
-
-        // White sole strip
-        const soleMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.4 });
-        const soleGeom = new THREE.BoxGeometry(0.14, 0.03, 0.21);
-        const soleL = new THREE.Mesh(soleGeom, soleMat);
-        soleL.position.set(-0.1, 0.19, 0.03);
-        group.add(soleL);
-        const soleR = new THREE.Mesh(soleGeom, soleMat);
-        soleR.position.set(0.1, 0.19, 0.03);
-        group.add(soleR);
       }
 
-      // -- Arms -- (will be dynamically updated, but create base segments)
+      // ═══ ARMS ═══
       const armColor = isGirl ? 0xb0406a : 0x2d8a4e;
-      const armMat = new THREE.MeshStandardMaterial({ color: armColor, roughness: 0.45, metalness: 0.06, emissive: new THREE.Color(armColor), emissiveIntensity: 0.03 });
-      const forearmMat = new THREE.MeshStandardMaterial({ color: 0xd8b088, roughness: 0.42, metalness: 0.02, emissive: 0xd8b088, emissiveIntensity: 0.02 });
+      const armMat = new THREE.MeshStandardMaterial({ color: armColor, roughness: 0.45, metalness: 0.06 });
 
-      // Upper arm left
-      const uaGeom = new THREE.CylinderGeometry(0.04, 0.035, 0.3, 12);
+      // Upper arm left - BoxGeometry
+      const uaGeom = new THREE.BoxGeometry(0.1, 0.3, 0.1);
       const uaL = new THREE.Mesh(uaGeom, armMat);
       uaL.name = 'upperArmL';
+      uaL.castShadow = true;
       group.add(uaL);
-      // Forearm left
-      const faGeom = new THREE.CylinderGeometry(0.035, 0.03, 0.28, 12);
-      const faL = new THREE.Mesh(faGeom, forearmMat);
+
+      // Forearm left - BoxGeometry
+      const faGeom = new THREE.BoxGeometry(0.09, 0.28, 0.09);
+      const faL = new THREE.Mesh(faGeom, skinMat);
       faL.name = 'forearmL';
+      faL.castShadow = true;
       group.add(faL);
 
       // Upper arm right
       const uaR = new THREE.Mesh(uaGeom.clone(), armMat);
       uaR.name = 'upperArmR';
+      uaR.castShadow = true;
       group.add(uaR);
+
       // Forearm right
-      const faR = new THREE.Mesh(faGeom.clone(), forearmMat);
+      const faR = new THREE.Mesh(faGeom.clone(), skinMat);
       faR.name = 'forearmR';
+      faR.castShadow = true;
       group.add(faR);
 
-      // -- Hands (detailed with palm + fingers + thumb) --
-      const handMat = new THREE.MeshStandardMaterial({ color: 0xe0ba98, roughness: 0.38, metalness: 0.02, emissive: 0xe0ba98, emissiveIntensity: 0.03 });
-      const fingerMat = new THREE.MeshStandardMaterial({ color: 0xd8b088, roughness: 0.4, metalness: 0.02, emissive: 0xd8b088, emissiveIntensity: 0.02 });
+      // ═══ HANDS - SIMPLE BOXES (NOT GROUPS) ═══
+      const handMat = new THREE.MeshStandardMaterial({ color: 0xe0ba98, roughness: 0.38, metalness: 0.02 });
 
-      function createHandGroup(side) {
-        const hg = new THREE.Group();
-        const sideSign = side === 'L' ? -1 : 1;
-
-        // Palm
-        const palmGeom = new THREE.BoxGeometry(0.08, 0.04, 0.08);
-        const palm = new THREE.Mesh(palmGeom, handMat);
-        palm.position.set(0, 0, 0.01);
-        hg.add(palm);
-
-        // Four fingers — small cylinders curling slightly upward
-        for (let f = 0; f < 4; f++) {
-          const fingerGeom = new THREE.CylinderGeometry(0.009, 0.007, 0.055, 6);
-          const finger = new THREE.Mesh(fingerGeom, fingerMat);
-          const fx = -0.027 + f * 0.018;
-          finger.position.set(fx, 0.01, 0.06);
-          finger.rotation.x = -0.5; // curl forward
-          hg.add(finger);
-        }
-
-        // Thumb — offset to the side
-        const thumbGeom = new THREE.CylinderGeometry(0.01, 0.008, 0.04, 5);
-        const thumb = new THREE.Mesh(thumbGeom, fingerMat);
-        thumb.position.set(sideSign * 0.045, 0.005, 0.02);
-        thumb.rotation.z = sideSign * 0.6;
-        thumb.rotation.x = -0.3;
-        hg.add(thumb);
-
-        // Wrist connector (smooth transition from forearm)
-        const wristGeom = new THREE.SphereGeometry(0.028, 8, 6);
-        const wrist = new THREE.Mesh(wristGeom, handMat);
-        wrist.position.set(0, -0.01, -0.01);
-        wrist.scale.set(1.2, 0.8, 1);
-        hg.add(wrist);
-
-        // Hand glow ring (subtle)
-        const hGlowGeom = new THREE.RingGeometry(0.04, 0.08, 16);
-        const hGlowMat = new THREE.MeshBasicMaterial({
-          color: 0xa89eff,
-          transparent: true,
-          opacity: 0.08,
-          side: THREE.DoubleSide
-        });
-        const hGlow = new THREE.Mesh(hGlowGeom, hGlowMat);
-        hGlow.rotation.x = -Math.PI / 2;
-        hGlow.position.y = -0.02;
-        hg.add(hGlow);
-
-        return hg;
-      }
-
-      const handL = createHandGroup('L');
+      // Left hand - simple box mesh
+      const handL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.1), handMat);
       handL.name = 'handL';
+      handL.castShadow = true;
       group.add(handL);
-      const handR = createHandGroup('R');
-      handR.name = 'handR';
-      group.add(handR);
 
-      // -- Ambient glow under juggler --
-      const glowGeom = new THREE.PlaneGeometry(1.5, 1.5);
-      const glowMat = new THREE.MeshBasicMaterial({
-        color: 0x7c6cf0,
-        transparent: true,
-        opacity: 0.1,
-        side: THREE.DoubleSide
-      });
-      const glow = new THREE.Mesh(glowGeom, glowMat);
-      glow.rotation.x = -Math.PI / 2;
-      glow.position.y = 0.01;
-      group.add(glow);
+      // Right hand - simple box mesh
+      const handR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.1), handMat);
+      handR.name = 'handR';
+      handR.castShadow = true;
+      group.add(handR);
 
       group.castShadow = true;
       return group;
@@ -2675,6 +2496,15 @@
     };
     const HAND_SMOOTH = 0.25; // 0 = no smoothing, 1 = instant
 
+    // Actual 3D hand world positions after IK clamping (used for prop placement)
+    const actualHandWorld = {
+      A: { L: new THREE.Vector3(), R: new THREE.Vector3() },
+      B: { L: new THREE.Vector3(), R: new THREE.Vector3() },
+      C: { L: new THREE.Vector3(), R: new THREE.Vector3() },
+      D: { L: new THREE.Vector3(), R: new THREE.Vector3() },
+      solo: { L: new THREE.Vector3(), R: new THREE.Vector3() }
+    };
+
     function lerpVec3(current, target, alpha) {
       if (!current) return target.clone();
       return current.clone().lerp(target, alpha);
@@ -2688,20 +2518,25 @@
       const shoulderL = new THREE.Vector3(-shoulderSpread, shoulderY, 0.04);
       const shoulderR = new THREE.Vector3(shoulderSpread, shoulderY, 0.04);
 
-      // Get hand positions in group local space
+      // Get hand positions in group local space (accounting for rotation)
       const groupWorldPos = new THREE.Vector3();
       group.getWorldPosition(groupWorldPos);
+
+      // Inverse rotation quaternion to convert world offset to local space
+      const invQuat = new THREE.Quaternion();
+      group.getWorldQuaternion(invQuat);
+      invQuat.invert();
 
       let hlLocal = new THREE.Vector3(
         handLPos.x - groupWorldPos.x,
         handLPos.y - groupWorldPos.y,
         handLPos.z - groupWorldPos.z
-      );
+      ).applyQuaternion(invQuat);
       let hrLocal = new THREE.Vector3(
         handRPos.x - groupWorldPos.x,
         handRPos.y - groupWorldPos.y,
         handRPos.z - groupWorldPos.z
-      );
+      ).applyQuaternion(invQuat);
 
       // Smooth hand positions to avoid harsh jumps
       const sk = smoothHands[smoothKey];
@@ -2711,34 +2546,46 @@
       hrLocal = sk.R.clone();
 
       // Position arms using improved 2-segment IK with pole vector
-      positionArmSegments(group, 'L', shoulderL, hlLocal);
-      positionArmSegments(group, 'R', shoulderR, hrLocal);
+      const ikL = positionArmSegments(group, 'L', shoulderL, hlLocal);
+      const ikR = positionArmSegments(group, 'R', shoulderR, hrLocal);
 
-      // Position hands with wrist orientation (hands are now groups with fingers)
+      // Position hands just past the forearm tip so they're visible
       const handL = group.getObjectByName('handL');
       const handR = group.getObjectByName('handR');
-      if (handL) {
+      if (handL && ikL) {
+        // Offset hand 0.06 past the forearm end along the forearm direction
+        const handOffset = ikL.forearmDir.clone().multiplyScalar(0.06);
+        handL.position.copy(ikL.targetPos).add(handOffset);
+        handL.rotation.set(0, 0, 0);
+      } else if (handL) {
         handL.position.copy(hlLocal);
-        // Orient hand: fingers point forward, palm faces up when at rest
-        const forearmDir = hlLocal.clone().sub(shoulderL).normalize();
-        // Tilt hand to follow arm direction
-        handL.rotation.x = Math.atan2(-forearmDir.y, forearmDir.z) * 0.5 - 0.3;
-        handL.rotation.y = Math.atan2(forearmDir.x, forearmDir.z) * 0.3;
-        handL.rotation.z = Math.atan2(forearmDir.x, -forearmDir.y) * 0.25;
+        handL.rotation.set(0, 0, 0);
+      }
+      if (handR && ikR) {
+        const handOffset = ikR.forearmDir.clone().multiplyScalar(0.06);
+        handR.position.copy(ikR.targetPos).add(handOffset);
+        handR.rotation.set(0, 0, 0);
+      } else if (handR) {
+        handR.position.copy(hrLocal);
+        handR.rotation.set(0, 0, 0);
+      }
+
+      // Store actual hand world positions for prop placement
+      const worldQuat = new THREE.Quaternion();
+      group.getWorldQuaternion(worldQuat);
+      const hw = actualHandWorld[smoothKey];
+      if (handL) {
+        hw.L.copy(handL.position).applyQuaternion(worldQuat).add(groupWorldPos);
       }
       if (handR) {
-        handR.position.copy(hrLocal);
-        const forearmDir = hrLocal.clone().sub(shoulderR).normalize();
-        handR.rotation.x = Math.atan2(-forearmDir.y, forearmDir.z) * 0.5 - 0.3;
-        handR.rotation.y = Math.atan2(forearmDir.x, forearmDir.z) * 0.3;
-        handR.rotation.z = Math.atan2(forearmDir.x, -forearmDir.y) * 0.25;
+        hw.R.copy(handR.position).applyQuaternion(worldQuat).add(groupWorldPos);
       }
     }
 
     function positionArmSegments(group, side, shoulder, handPos) {
       const upperArm = group.getObjectByName('upperArm' + side);
       const forearm = group.getObjectByName('forearm' + side);
-      if (!upperArm || !forearm) return;
+      if (!upperArm || !forearm) return null;
 
       const uaLen = 0.3;
       const faLen = 0.28;
@@ -2807,6 +2654,8 @@
       const faQuat = new THREE.Quaternion();
       faQuat.setFromUnitVectors(new THREE.Vector3(0, 1, 0), faDir);
       forearm.quaternion.copy(faQuat);
+
+      return { targetPos, forearmDir: faDir }; // Return clamped position + direction for hand placement
     }
 
     // ─── JUGGLER INSTANCES ──────────────────────────────────────────
@@ -2823,6 +2672,9 @@
       if (jugglerC) { scene.remove(jugglerC); jugglerC = null; }
       if (jugglerD) { scene.remove(jugglerD); jugglerD = null; }
 
+      // Clear shape info
+      for (const k in jugglerShapeInfo) delete jugglerShapeInfo[k];
+
       if (currentMode === 'quartet') {
         jugglerA = createJugglerGroup('boy');
         jugglerB = createJugglerGroup('girl');
@@ -2834,13 +2686,33 @@
         const posC = map2Dto3D(QUARTET_JUGGLER_C_X, GROUND_Y_2D);
         const posD = map2Dto3D(QUARTET_JUGGLER_D_X, GROUND_Y_2D);
 
-        jugglerA.position.set(posA.x, 0, 0);
-        jugglerB.position.set(posB.x, 0, 0);
-        jugglerC.position.set(posC.x, 0, 0);
-        jugglerD.position.set(posD.x, 0, 0);
-
-        jugglerA.rotation.y = 0.1;
-        jugglerD.rotation.y = -0.1;
+        if (currentArrangement === 'shape') {
+          // Square formation: A(front-left), B(front-right), C(back-left), D(back-right)
+          const spread = 1.8;
+          const depth = 1.8;
+          jugglerA.position.set(-spread / 2, 0, depth / 2);
+          jugglerB.position.set(spread / 2, 0, depth / 2);
+          jugglerC.position.set(-spread / 2, 0, -depth / 2);
+          jugglerD.position.set(spread / 2, 0, -depth / 2);
+          // Face center
+          jugglerA.rotation.y = 0.35;
+          jugglerB.rotation.y = -0.35;
+          jugglerC.rotation.y = Math.PI - 0.35;
+          jugglerD.rotation.y = Math.PI + 0.35;
+          // Store shape info for coordinate transform
+          jugglerShapeInfo.A = { lineX: posA.x, shapeX: -spread / 2, shapeZ: depth / 2, rotY: 0.35 };
+          jugglerShapeInfo.B = { lineX: posB.x, shapeX: spread / 2, shapeZ: depth / 2, rotY: -0.35 };
+          jugglerShapeInfo.C = { lineX: posC.x, shapeX: -spread / 2, shapeZ: -depth / 2, rotY: Math.PI - 0.35 };
+          jugglerShapeInfo.D = { lineX: posD.x, shapeX: spread / 2, shapeZ: -depth / 2, rotY: Math.PI + 0.35 };
+        } else {
+          // Line formation (default)
+          jugglerA.position.set(posA.x, 0, 0);
+          jugglerB.position.set(posB.x, 0, 0);
+          jugglerC.position.set(posC.x, 0, 0);
+          jugglerD.position.set(posD.x, 0, 0);
+          jugglerA.rotation.y = 0.1;
+          jugglerD.rotation.y = -0.1;
+        }
 
         scene.add(jugglerA);
         scene.add(jugglerB);
@@ -2855,12 +2727,28 @@
         const posB = map2Dto3D(TRIO_JUGGLER_B_X, GROUND_Y_2D);
         const posC = map2Dto3D(TRIO_JUGGLER_C_X, GROUND_Y_2D);
 
-        jugglerA.position.set(posA.x, 0, 0);
-        jugglerB.position.set(posB.x, 0, 0);
-        jugglerC.position.set(posC.x, 0, 0);
-
-        jugglerA.rotation.y = 0.12;
-        jugglerC.rotation.y = -0.12;
+        if (currentArrangement === 'shape') {
+          // Triangle formation: A(front-center), B(back-left), C(back-right)
+          const triRadius = 1.8;
+          jugglerA.position.set(0, 0, triRadius * 0.7);
+          jugglerB.position.set(-triRadius * 0.85, 0, -triRadius * 0.5);
+          jugglerC.position.set(triRadius * 0.85, 0, -triRadius * 0.5);
+          // Face center
+          jugglerA.rotation.y = Math.PI;
+          jugglerB.rotation.y = 0.5;
+          jugglerC.rotation.y = -0.5;
+          // Store shape info for coordinate transform
+          jugglerShapeInfo.A = { lineX: posA.x, shapeX: 0, shapeZ: triRadius * 0.7, rotY: Math.PI };
+          jugglerShapeInfo.B = { lineX: posB.x, shapeX: -triRadius * 0.85, shapeZ: -triRadius * 0.5, rotY: 0.5 };
+          jugglerShapeInfo.C = { lineX: posC.x, shapeX: triRadius * 0.85, shapeZ: -triRadius * 0.5, rotY: -0.5 };
+        } else {
+          // Line formation (default)
+          jugglerA.position.set(posA.x, 0, 0);
+          jugglerB.position.set(posB.x, 0, 0);
+          jugglerC.position.set(posC.x, 0, 0);
+          jugglerA.rotation.y = 0.12;
+          jugglerC.rotation.y = -0.12;
+        }
 
         scene.add(jugglerA);
         scene.add(jugglerB);
@@ -2896,7 +2784,7 @@
     const MAX_PROPS = 20;
 
     function createBallMesh(color) {
-      const geom = new THREE.SphereGeometry(0.09, 32, 24);
+      const geom = new THREE.SphereGeometry(0.09, 20, 16);
       const mat = new THREE.MeshStandardMaterial({
         color: new THREE.Color(color),
         roughness: 0.12,
@@ -2991,7 +2879,7 @@
       const ringGroup = new THREE.Group();
 
       // Main torus ring
-      const torusGeom = new THREE.TorusGeometry(0.1, 0.018, 12, 32);
+      const torusGeom = new THREE.TorusGeometry(0.1, 0.018, 8, 24);
       const torusMat = new THREE.MeshStandardMaterial({
         color: new THREE.Color(color),
         roughness: 0.15,
@@ -3004,7 +2892,7 @@
       ringGroup.add(torus);
 
       // Inner highlight ring for depth
-      const innerGeom = new THREE.TorusGeometry(0.1, 0.008, 8, 32);
+      const innerGeom = new THREE.TorusGeometry(0.1, 0.008, 6, 24);
       const innerMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,
@@ -3016,7 +2904,7 @@
       ringGroup.add(inner);
 
       // Subtle edge glow
-      const glowGeom = new THREE.TorusGeometry(0.115, 0.005, 6, 32);
+      const glowGeom = new THREE.TorusGeometry(0.115, 0.005, 4, 24);
       const glowMat = new THREE.MeshBasicMaterial({
         color: new THREE.Color(color),
         transparent: true,
@@ -3063,7 +2951,7 @@
     // ─── 3D PARTICLES ──────────────────────────────────────────────
 
     const particlePool = [];
-    const MAX_3D_PARTICLES = 200;
+    const MAX_3D_PARTICLES = 100;
 
     let particleGeometry, particleMaterial, particleSystem;
 
@@ -3520,24 +3408,23 @@
       // Update juggler arms based on hand states
       if (sim.passing) {
         if (jugglerA && handStates.A) {
-          const hlA = map2Dto3D(handStates.A.L.x, handStates.A.L.y);
-          const hrA = map2Dto3D(handStates.A.R.x, handStates.A.R.y);
-          updateJugglerArms(jugglerA, new THREE.Vector3(hlA.x, hlA.y, 0.18), new THREE.Vector3(hrA.x, hrA.y, 0.18), 'A');
+          const hlA = mapToShapeSpace(handStates.A.L.x, handStates.A.L.y, 'A', 0.18);
+          const hrA = mapToShapeSpace(handStates.A.R.x, handStates.A.R.y, 'A', 0.18);
+          updateJugglerArms(jugglerA, new THREE.Vector3(hlA.x, hlA.y, hlA.z), new THREE.Vector3(hrA.x, hrA.y, hrA.z), 'A');
         }
         if (jugglerB && handStates.B) {
-          const hlB = map2Dto3D(handStates.B.L.x, handStates.B.L.y);
-          const hrB = map2Dto3D(handStates.B.R.x, handStates.B.R.y);
-          updateJugglerArms(jugglerB, new THREE.Vector3(hlB.x, hlB.y, 0.18), new THREE.Vector3(hrB.x, hrB.y, 0.18), 'B');
+          const hlB = mapToShapeSpace(handStates.B.L.x, handStates.B.L.y, 'B', 0.18);
+          const hrB = mapToShapeSpace(handStates.B.R.x, handStates.B.R.y, 'B', 0.18);
+          updateJugglerArms(jugglerB, new THREE.Vector3(hlB.x, hlB.y, hlB.z), new THREE.Vector3(hrB.x, hrB.y, hrB.z), 'B');
         }
         if (jugglerC && handStates.C) {
-          const hlC = map2Dto3D(handStates.C.L.x, handStates.C.L.y);
-          const hrC = map2Dto3D(handStates.C.R.x, handStates.C.R.y);
-          updateJugglerArms(jugglerC, new THREE.Vector3(hlC.x, hlC.y, 0.18), new THREE.Vector3(hrC.x, hrC.y, 0.18), 'C');
+          const hlC = mapToShapeSpace(handStates.C.L.x, handStates.C.L.y, 'C', 0.18);
+          const hrC = mapToShapeSpace(handStates.C.R.x, handStates.C.R.y, 'C', 0.18);
+          updateJugglerArms(jugglerC, new THREE.Vector3(hlC.x, hlC.y, hlC.z), new THREE.Vector3(hrC.x, hrC.y, hrC.z), 'C');
         }
         if (jugglerD && handStates.D) {
-          const hlD = map2Dto3D(handStates.D.L.x, handStates.D.L.y);
-          const hrD = map2Dto3D(handStates.D.R.x, handStates.D.R.y);
-          hlD.z = 0.18; hrD.z = 0.18;
+          const hlD = mapToShapeSpace(handStates.D.L.x, handStates.D.L.y, 'D', 0.18);
+          const hrD = mapToShapeSpace(handStates.D.R.x, handStates.D.R.y, 'D', 0.18);
           updateJugglerArms(jugglerD, new THREE.Vector3(hlD.x, hlD.y, hlD.z), new THREE.Vector3(hrD.x, hrD.y, hrD.z), 'D');
         }
       } else {
@@ -3554,13 +3441,67 @@
         propGlowLights[i].visible = false;
       }
 
+      // Helper: remap prop from simulation space to actual hand positions
+      function remapPropPosition(ball, handStates) {
+        const simPos = mapPropToShapeSpace(ball.x, ball.y, ball.fromJuggler, ball.toJuggler, ball.airFrac, ball.holder);
+
+        let handKey, simL3d, simR3d;
+        if (sim.passing) {
+          // For passing: use holder's hands, or fromJuggler if in flight
+          handKey = ball.holder || ball.fromJuggler || 'A';
+          const hs = handStates[handKey];
+          if (!hs) return { x: simPos.x, y: simPos.y, z: simPos.z + 0.18 };
+          simL3d = mapToShapeSpace(hs.L.x, hs.L.y, handKey, 0.18);
+          simR3d = mapToShapeSpace(hs.R.x, hs.R.y, handKey, 0.18);
+        } else {
+          handKey = 'solo';
+          const lp = map2Dto3D(handStates.L.x, handStates.L.y);
+          const rp = map2Dto3D(handStates.R.x, handStates.R.y);
+          simL3d = { x: lp.x, y: lp.y, z: 0.18 };
+          simR3d = { x: rp.x, y: rp.y, z: 0.18 };
+        }
+
+        const aL = actualHandWorld[handKey].L;
+        const aR = actualHandWorld[handKey].R;
+
+        // If actual positions aren't set yet, fall back
+        if (aL.x === 0 && aL.y === 0 && aR.x === 0 && aR.y === 0) {
+          return { x: simPos.x, y: simPos.y, z: simPos.z + 0.18 };
+        }
+
+        // Remap X: fraction between sim L and R hands
+        const simSpreadX = simR3d.x - simL3d.x;
+        const t = simSpreadX !== 0 ? (simPos.x - simL3d.x) / simSpreadX : 0.5;
+        const propX = aL.x + t * (aR.x - aL.x);
+
+        // Remap Z: interpolate between actual hands
+        const propZ = aL.z + t * (aR.z - aL.z);
+
+        // Remap Y: keep arc height above hand level
+        const simHandY = (simL3d.y + simR3d.y) / 2;
+        const yAboveHand = simPos.y - simHandY;
+        const propY = (aL.y + aR.y) / 2 + yAboveHand;
+
+        // For in-flight cross-juggler passes, use simulation position directly.
+        // The t-extrapolation above only works for balls staying near one juggler's
+        // hands — for a pass the ball travels across the full stage, pushing t to
+        // values like 2–3.  The old "blend toward target" code then added another
+        // full juggler-to-juggler offset on top, sending props 3–6 units off to the
+        // side.  mapPropToShapeSpace already produces the correct 3D arc position
+        // (and handles shape formations), so we just use it directly.
+        if (sim.passing && ball.airFrac > 0 && ball.airFrac <= 1 && ball.fromJuggler !== ball.toJuggler) {
+          return { x: simPos.x, y: simPos.y, z: simPos.z + 0.18 };
+        }
+
+        return { x: propX, y: propY, z: propZ };
+      }
+
       for (const ball of balls) {
         if (ball.id < propMeshes.length) {
           const mesh = propMeshes[ball.id];
           const light = propGlowLights[ball.id];
-          const pos3d = map2Dto3D(ball.x, ball.y);
-
-          mesh.position.set(pos3d.x, pos3d.y, pos3d.z);
+          const propPos = remapPropPosition(ball, handStates);
+          mesh.position.set(propPos.x, propPos.y, propPos.z);
           mesh.visible = true;
 
           // Club rotation
@@ -3616,8 +3557,8 @@
             }
           }
 
-          // Glow light
-          light.position.set(pos3d.x, pos3d.y, pos3d.z + 0.15);
+          // Glow light (follow transformed prop position)
+          light.position.set(propPos.x, propPos.y, propPos.z + 0.15);
           light.visible = true;
 
           // Dynamic glow: brighter when in flight, extra for passes
@@ -3649,10 +3590,8 @@
       const t = timestamp * 0.001;
       rimLight.position.x = Math.sin(t * 0.5) * 2.5;
       rimLight.position.z = Math.cos(t * 0.3) * 3.5 - 2;
-      spotLight.position.x = Math.sin(t * 0.2) * 0.5;
 
-      // Floating ambient particles
-      updateAmbientParticles(t);
+      // Floating ambient particles removed
 
       // Render
       renderer.render(scene, camera);
@@ -3722,8 +3661,44 @@
       });
     });
 
+    // Arrangement toggle
+    let currentArrangement = 'line';
+    const arrangementGroup = document.getElementById('arrangementGroup');
+    const arrBtns = document.querySelectorAll('.arr-btn');
+    arrBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        arrBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentArrangement = btn.dataset.arr;
+        // Re-position jugglers for the new formation
+        if (sim && sim.running) {
+          setupJugglers();
+          // Reset hand smoothing to avoid lerp artifacts during transition
+          smoothHands.A.L = null; smoothHands.A.R = null;
+          smoothHands.B.L = null; smoothHands.B.R = null;
+          smoothHands.C.L = null; smoothHands.C.R = null;
+          smoothHands.D.L = null; smoothHands.D.R = null;
+        }
+        // Adjust camera orbit for shape to show depth
+        if (currentArrangement === 'shape') {
+          camOrbitAngle = 0.45;
+        } else {
+          camOrbitAngle = 0;
+        }
+        updateCameraPosition();
+      });
+    });
+
     // Mode toggle (solo / passing)
     const modeBtns = document.querySelectorAll('.mode-btn');
+    // Default siteswaps per mode
+    const MODE_DEFAULT_SS = {
+      solo: '3',       // 3-ball cascade
+      passing: '77',   // 2-count (6 clubs)
+      trio: '7',       // 7-feed
+      quartet: '4444'  // 4-cascade
+    };
+
     modeBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         modeBtns.forEach(b => b.classList.remove('active'));
@@ -3731,8 +3706,12 @@
         const newMode = btn.dataset.mode;
         if (newMode !== currentMode) {
           currentMode = newMode;
+          arrangementGroup.style.display = (currentMode === 'trio' || currentMode === 'quartet') ? '' : 'none';
           fullStop();
           updatePresets();
+          // Set default siteswap for this mode and auto-start
+          siteswapInput.value = MODE_DEFAULT_SS[currentMode] || '3';
+          startJuggling();
         }
       });
     });
@@ -3792,6 +3771,8 @@
         camTarget.set(0, 1.5, 0);
         camDistance = 7;
       }
+      // Orbit camera for shape formations to show depth
+      camOrbitAngle = (currentArrangement === 'shape') ? 0.45 : 0;
       updateCameraPosition();
 
       currentSiteswapStr = siteswapInput.value.trim().toLowerCase();
@@ -4138,12 +4119,12 @@
     siteswapInput.value = 'bb';
     updatePresets();
 
-    // Initial render to show something before auto-start
+    // Render the empty scene so the browser paints it before the heavy
+    // startJuggling() call (setupJugglers + ensurePropMeshes) blocks the thread.
+    // The double rAF guarantees the idle frame is actually composited to screen
+    // before initialization starts, removing the blank-page stall.
     drawIdleScreen();
-    // Small delay to let Three.js initialize
-    requestAnimationFrame(() => {
-      startJuggling();
-    });
+    requestAnimationFrame(() => requestAnimationFrame(() => startJuggling()));
   </script>
 
 </body>
